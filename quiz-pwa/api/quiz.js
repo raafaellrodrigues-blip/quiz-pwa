@@ -1,6 +1,5 @@
 const OpenAI = require('openai');
 
-// Configura o cliente para usar o OpenRouter
 const openai = new OpenAI({
   apiKey: process.env.ANTHROPIC_API_KEY,
   baseURL: "https://openrouter.ai/api/v1",
@@ -16,7 +15,7 @@ const DIFFICULTY_MAP = {
 function buildPrompt(difficulty) {
   const diffLabel = DIFFICULTY_MAP[difficulty] || DIFFICULTY_MAP.misto;
   return `Gere exatamente 20 questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}. 
-  Retorne APENAS o objeto JSON puro, sem textos explicativos antes ou depois.
+  Retorne APENAS o objeto JSON puro:
   {
     "questions": [
       {
@@ -32,7 +31,6 @@ function buildPrompt(difficulty) {
 }
 
 module.exports = async function handler(req, res) {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -41,14 +39,17 @@ module.exports = async function handler(req, res) {
   
   try {
     const response = await openai.chat.completions.create({
-      model: 'google/gemini-2.0-flash-001'
-      messages: [{ role: 'user', content: buildPrompt(req.query.difficulty) }],
+      model: 'google/gemini-2.0-flash-001',
+      messages: [
+        { 
+          role: 'user', 
+          content: buildPrompt(req.query.difficulty) 
+        }
+      ],
       temperature: 0.7
     });
 
     const content = response.choices[0].message.content;
-    
-    // Filtro para garantir que pegamos apenas o JSON
     const jsonStart = content.indexOf('{');
     const jsonEnd = content.lastIndexOf('}') + 1;
     const cleanJson = content.substring(jsonStart, jsonEnd);
@@ -57,7 +58,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json(parsed);
 
   } catch (err) {
-    console.error('Erro detalhado na API:', err);
+    console.error('Erro na API:', err);
     return res.status(500).json({ 
       error: 'Erro na geração', 
       details: err.message 
