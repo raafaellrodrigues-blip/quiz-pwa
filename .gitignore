@@ -1,0 +1,27 @@
+<<<<<<< HEAD
+# Dependências
+node_modules/
+.npm
+
+# Variáveis de ambiente — NUNCA commitar!
+.env
+.env.local
+.env.production
+
+# Vercel
+.vercel
+
+# Sistema
+.DS_Store
+Thumbs.db
+*.log
+
+# Build artifacts
+dist/
+build/
+
+.vercel
+.env*.local
+=======
+.vercel
+>>>>>>> ee8875c (feat: configuração do openrouter e correções de api)

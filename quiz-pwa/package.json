@@ -1,0 +1,21 @@
+{
+  "name": "quiz-ia-pwa",
+  "version": "1.0.0",
+  "description": "Quiz interativo com IA via OpenRouter",
+  "private": true,
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Build OK'",
+    "lint": "echo 'OK'"
+  },
+  "dependencies": {
+    "openai": "^4.0.0"
+  },
+  "devDependencies": {
+    "vercel": "^37.0.0"
+  },
+  "license": "MIT"
+}

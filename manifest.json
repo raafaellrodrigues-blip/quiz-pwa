@@ -1,0 +1,43 @@
+{
+  "name": "QuizIA — Conhecimento Nunca Para",
+  "short_name": "QuizIA",
+  "description": "Quiz interativo com perguntas geradas por Inteligência Artificial no estilo ENEM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f13",
+  "theme_color": "#0f0f13",
+  "orientation": "portrait-primary",
+  "lang": "pt-BR",
+  "categories": ["education", "games"],
+  "icons": [
+    {
+      "src": "public/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "public/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "public/screenshot-mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quiz Rápido",
+      "short_name": "Rápido",
+      "description": "Iniciar quiz no modo rápido",
+      "url": "/?mode=rapido",
+      "icons": [{ "src": "public/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
