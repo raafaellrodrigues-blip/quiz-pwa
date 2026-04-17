@@ -25,8 +25,9 @@
 <div id="screen-loading" class="screen active">
   <div class="loading-inner">
     <div class="loading-logo">
-      <div class="logo-pulse"></div>
-      <img src="logo.png" alt="Raciocine.IA Logo" class="app-logo-img">
+      <div class="logo-pulse">
+        <img src="logo.png" alt="Raciocine.IA Logo" class="app-logo-img" onerror="this.style.display='none'">
+      </div>
     </div>
     <div class="loading-bar-wrap">
       <div class="loading-bar" id="loading-bar"></div>
@@ -91,6 +92,18 @@
         <div class="mode-desc">30s por questão</div>
       </button>
     </div>
+  </div>
+
+  <!-- TEMA -->
+  <div class="topic-section">
+    <p class="section-label">Tema</p>
+    <button class="topic-selector-btn" id="topic-selector-btn" onclick="openTopicModal()">
+      <span class="topic-btn-icon" id="topic-btn-icon">🎲</span>
+      <span class="topic-btn-label" id="topic-btn-label">Aleatório</span>
+      <svg class="topic-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
   </div>
 
   <div class="diff-section">
@@ -274,6 +287,153 @@
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL TEMAS
+═══════════════════════════════════════════ -->
+<div id="modal-topic" class="modal-overlay" style="display:none" onclick="handleTopicOverlayClick(event)">
+  <div class="modal-topic-box">
+    <div class="modal-topic-header">
+      <p class="modal-topic-title">Escolha o Tema</p>
+      <button class="icon-btn" onclick="closeTopicModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-topic-scroll">
+
+      <!-- Aleatório -->
+      <button class="topic-item topic-random" onclick="selectTopic('🎲','Aleatório','Aleatório')">
+        <span class="topic-item-icon">🎲</span>
+        <span class="topic-item-name">Aleatório</span>
+        <span class="topic-item-check" id="check-Aleatório">✓</span>
+      </button>
+
+      <div class="topic-group-label">📚 Áreas Principais</div>
+      <button class="topic-item" onclick="selectTopic('⚖️','Direito','Direito')"><span class="topic-item-icon">⚖️</span><span class="topic-item-name">Direito</span><span class="topic-item-check" id="check-Direito"></span></button>
+      <button class="topic-item" onclick="selectTopic('🩺','Enfermagem','Enfermagem')"><span class="topic-item-icon">🩺</span><span class="topic-item-name">Enfermagem</span><span class="topic-item-check" id="check-Enfermagem"></span></button>
+      <button class="topic-item" onclick="selectTopic('🏥','Medicina','Medicina')"><span class="topic-item-icon">🏥</span><span class="topic-item-name">Medicina</span><span class="topic-item-check" id="check-Medicina"></span></button>
+      <button class="topic-item" onclick="selectTopic('🧠','Psicologia','Psicologia')"><span class="topic-item-icon">🧠</span><span class="topic-item-name">Psicologia</span><span class="topic-item-check" id="check-Psicologia"></span></button>
+      <button class="topic-item" onclick="selectTopic('📊','Administração','Administração')"><span class="topic-item-icon">📊</span><span class="topic-item-name">Administração</span><span class="topic-item-check" id="check-Administração"></span></button>
+      <button class="topic-item" onclick="selectTopic('💰','Contabilidade','Contabilidade')"><span class="topic-item-icon">💰</span><span class="topic-item-name">Contabilidade</span><span class="topic-item-check" id="check-Contabilidade"></span></button>
+      <button class="topic-item" onclick="selectTopic('⚙️','Engenharia','Engenharia')"><span class="topic-item-icon">⚙️</span><span class="topic-item-name">Engenharia</span><span class="topic-item-check" id="check-Engenharia"></span></button>
+      <button class="topic-item" onclick="selectTopic('💻','Tecnologia da Informação','TI')"><span class="topic-item-icon">💻</span><span class="topic-item-name">Tecnologia da Informação</span><span class="topic-item-check" id="check-TI"></span></button>
+      <button class="topic-item" onclick="selectTopic('👨‍💻','Programação','Programação')"><span class="topic-item-icon">👨‍💻</span><span class="topic-item-name">Programação</span><span class="topic-item-check" id="check-Programação"></span></button>
+      <button class="topic-item" onclick="selectTopic('🌐','Redes de Computadores','Redes')"><span class="topic-item-icon">🌐</span><span class="topic-item-name">Redes de Computadores</span><span class="topic-item-check" id="check-Redes"></span></button>
+
+      <div class="topic-group-label">🎓 Educação & Concursos</div>
+      <button class="topic-item" onclick="selectTopic('🎓','ENEM','ENEM')"><span class="topic-item-icon">🎓</span><span class="topic-item-name">ENEM</span><span class="topic-item-check" id="check-ENEM"></span></button>
+      <button class="topic-item" onclick="selectTopic('📖','Vestibulares','Vestibulares')"><span class="topic-item-icon">📖</span><span class="topic-item-name">Vestibulares</span><span class="topic-item-check" id="check-Vestibulares"></span></button>
+      <button class="topic-item" onclick="selectTopic('🏛️','Concursos Públicos','Concursos')"><span class="topic-item-icon">🏛️</span><span class="topic-item-name">Concursos Públicos</span><span class="topic-item-check" id="check-Concursos"></span></button>
+      <button class="topic-item" onclick="selectTopic('📘','Ensino Fundamental','Fund.')"><span class="topic-item-icon">📘</span><span class="topic-item-name">Ensino Fundamental</span><span class="topic-item-check" id="check-Fund."></span></button>
+      <button class="topic-item" onclick="selectTopic('📗','Ensino Médio','E. Médio')"><span class="topic-item-icon">📗</span><span class="topic-item-name">Ensino Médio</span><span class="topic-item-check" id="check-E. Médio"></span></button>
+
+      <div class="topic-group-label">🔬 Ciências</div>
+      <button class="topic-item" onclick="selectTopic('➗','Matemática','Matemática')"><span class="topic-item-icon">➗</span><span class="topic-item-name">Matemática</span><span class="topic-item-check" id="check-Matemática"></span></button>
+      <button class="topic-item" onclick="selectTopic('⚛️','Física','Física')"><span class="topic-item-icon">⚛️</span><span class="topic-item-name">Física</span><span class="topic-item-check" id="check-Física"></span></button>
+      <button class="topic-item" onclick="selectTopic('🧪','Química','Química')"><span class="topic-item-icon">🧪</span><span class="topic-item-name">Química</span><span class="topic-item-check" id="check-Química"></span></button>
+      <button class="topic-item" onclick="selectTopic('🧬','Biologia','Biologia')"><span class="topic-item-icon">🧬</span><span class="topic-item-name">Biologia</span><span class="topic-item-check" id="check-Biologia"></span></button>
+
+      <div class="topic-group-label">🌎 Humanas</div>
+      <button class="topic-item" onclick="selectTopic('📜','História','História')"><span class="topic-item-icon">📜</span><span class="topic-item-name">História</span><span class="topic-item-check" id="check-História"></span></button>
+      <button class="topic-item" onclick="selectTopic('🌍','Geografia','Geografia')"><span class="topic-item-icon">🌍</span><span class="topic-item-name">Geografia</span><span class="topic-item-check" id="check-Geografia"></span></button>
+      <button class="topic-item" onclick="selectTopic('🏛️','Filosofia','Filosofia')"><span class="topic-item-icon">🏛️</span><span class="topic-item-name">Filosofia</span><span class="topic-item-check" id="check-Filosofia"></span></button>
+      <button class="topic-item" onclick="selectTopic('👥','Sociologia','Sociologia')"><span class="topic-item-icon">👥</span><span class="topic-item-name">Sociologia</span><span class="topic-item-check" id="check-Sociologia"></span></button>
+
+      <div class="topic-group-label">🗣️ Linguagens</div>
+      <button class="topic-item" onclick="selectTopic('🇧🇷','Português','Português')"><span class="topic-item-icon">🇧🇷</span><span class="topic-item-name">Português</span><span class="topic-item-check" id="check-Português"></span></button>
+      <button class="topic-item" onclick="selectTopic('🇺🇸','Inglês','Inglês')"><span class="topic-item-icon">🇺🇸</span><span class="topic-item-name">Inglês</span><span class="topic-item-check" id="check-Inglês"></span></button>
+      <button class="topic-item" onclick="selectTopic('🇪🇸','Espanhol','Espanhol')"><span class="topic-item-icon">🇪🇸</span><span class="topic-item-name">Espanhol</span><span class="topic-item-check" id="check-Espanhol"></span></button>
+      <button class="topic-item" onclick="selectTopic('✍️','Interpretação de Texto','Interpret.')"><span class="topic-item-icon">✍️</span><span class="topic-item-name">Interpretação de Texto</span><span class="topic-item-check" id="check-Interpret."></span></button>
+
+      <div class="topic-group-label">💼 Profissional / Técnico</div>
+      <button class="topic-item" onclick="selectTopic('🖥️','Informática Básica','Informática')"><span class="topic-item-icon">🖥️</span><span class="topic-item-name">Informática Básica</span><span class="topic-item-check" id="check-Informática"></span></button>
+      <button class="topic-item" onclick="selectTopic('📊','Excel','Excel')"><span class="topic-item-icon">📊</span><span class="topic-item-name">Excel</span><span class="topic-item-check" id="check-Excel"></span></button>
+      <button class="topic-item" onclick="selectTopic('⚠️','Segurança do Trabalho','Seg. Trabalho')"><span class="topic-item-icon">⚠️</span><span class="topic-item-name">Segurança do Trabalho</span><span class="topic-item-check" id="check-Seg. Trabalho"></span></button>
+      <button class="topic-item" onclick="selectTopic('📢','Marketing Digital','Marketing')"><span class="topic-item-icon">📢</span><span class="topic-item-name">Marketing Digital</span><span class="topic-item-check" id="check-Marketing"></span></button>
+      <button class="topic-item" onclick="selectTopic('💵','Vendas','Vendas')"><span class="topic-item-icon">💵</span><span class="topic-item-name">Vendas</span><span class="topic-item-check" id="check-Vendas"></span></button>
+
+      <div class="topic-group-label">🎯 Extras</div>
+      <button class="topic-item" onclick="selectTopic('🔥','Raciocínio Lógico','R. Lógico')"><span class="topic-item-icon">🔥</span><span class="topic-item-name">Raciocínio Lógico</span><span class="topic-item-check" id="check-R. Lógico"></span></button>
+      <button class="topic-item" onclick="selectTopic('✝️','Perguntas Bíblicas','Bíblia')"><span class="topic-item-icon">✝️</span><span class="topic-item-name">Perguntas Bíblicas</span><span class="topic-item-check" id="check-Bíblia"></span></button>
+      <button class="topic-item" onclick="selectTopic('📰','Atualidades','Atualidades')"><span class="topic-item-icon">📰</span><span class="topic-item-name">Atualidades</span><span class="topic-item-check" id="check-Atualidades"></span></button>
+      <button class="topic-item" onclick="selectTopic('🌐','Cultura Geral','Cultura Geral')"><span class="topic-item-icon">🌐</span><span class="topic-item-name">Cultura Geral</span><span class="topic-item-check" id="check-Cultura Geral"></span></button>
+      <button class="topic-item" onclick="selectTopic('🤯','Curiosidades','Curiosidades')"><span class="topic-item-icon">🤯</span><span class="topic-item-name">Curiosidades</span><span class="topic-item-check" id="check-Curiosidades"></span></button>
+
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// LOADING SCREEN — sequência correta
+// ═══════════════════════════════════════════
+(function initLoading() {
+  const bar   = document.getElementById('loading-bar');
+  const msg   = document.getElementById('loading-msg');
+  const steps = [
+    { pct: 20,  txt: 'Carregando interface...' },
+    { pct: 55,  txt: 'Conectando com a IA...' },
+    { pct: 80,  txt: 'Preparando quiz...' },
+    { pct: 100, txt: 'Pronto!' },
+  ];
+  let i = 0;
+  function nextStep() {
+    if (i >= steps.length) {
+      // Só mostra home depois que loading terminar
+      setTimeout(() => {
+        document.getElementById('screen-loading').classList.remove('active');
+        document.getElementById('screen-home').classList.add('active');
+      }, 350);
+      return;
+    }
+    const s = steps[i++];
+    bar.style.width = s.pct + '%';
+    msg.textContent = s.txt;
+    setTimeout(nextStep, i === steps.length ? 600 : 500);
+  }
+  // Pequeno delay inicial pra logo aparecer
+  setTimeout(nextStep, 400);
+})();
+
+// ═══════════════════════════════════════════
+// TOPIC SELECTOR
+// ═══════════════════════════════════════════
+let selectedTopic = { icon: '🎲', label: 'Aleatório', key: 'Aleatório' };
+
+function openTopicModal() {
+  document.getElementById('modal-topic').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  // Marca o item atual
+  document.querySelectorAll('.topic-item-check').forEach(el => el.textContent = '');
+  const cur = document.getElementById('check-' + selectedTopic.key);
+  if (cur) cur.textContent = '✓';
+}
+
+function closeTopicModal() {
+  document.getElementById('modal-topic').style.display = 'none';
+  document.body.style.overflow = '';
+}
+
+function handleTopicOverlayClick(e) {
+  if (e.target === document.getElementById('modal-topic')) closeTopicModal();
+}
+
+function selectTopic(icon, label, key) {
+  selectedTopic = { icon, label, key };
+  document.getElementById('topic-btn-icon').textContent = icon;
+  document.getElementById('topic-btn-label').textContent = label;
+  // Atualiza checks
+  document.querySelectorAll('.topic-item-check').forEach(el => el.textContent = '');
+  const cur = document.getElementById('check-' + key);
+  if (cur) cur.textContent = '✓';
+  closeTopicModal();
+}
+
+// Expõe o tema selecionado para o app.js usar
+window.getSelectedTopic = function() { return selectedTopic; };
+</script>
 
 <script src="app.js"></script>
 </body>

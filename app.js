@@ -116,7 +116,8 @@ async function startGame() {
   hint.textContent  = 'A IA está criando questões únicas ✨';
 
   try {
-    const qs = await fetchQuestions(G.difficulty);
+    const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
+    const qs = await fetchQuestions(G.difficulty, tema);
     Object.assign(G, { questions: qs, idx: 0, score: 0, combo: 0, maxCombo: 0, correct: 0, answered: false });
     showScreen('quiz');
     renderQuestion();
@@ -129,12 +130,12 @@ async function startGame() {
 }
 
 // ── CACHE / FETCH ─────────────────────────────
-async function fetchQuestions(diff) {
-  const key    = CONFIG.CACHE_KEY + '_' + diff;
+async function fetchQuestions(diff, tema = 'Aleatório') {
+  const key    = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
   const cached = getCached(key);
-  if (cached) { console.log('Cache hit:', diff); return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); }
+  if (cached) { console.log('Cache hit:', diff, tema); return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); }
 
-  const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff);
+  const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema));
   if (!res.ok) throw new Error('API ' + res.status);
   const data = await res.json();
   setCache(key, data.questions);
