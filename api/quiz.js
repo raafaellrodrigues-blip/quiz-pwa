@@ -12,22 +12,28 @@ const DIFFICULTY_MAP = {
   misto:   'MISTO — distribua: 3 fáceis, 4 médias, 3 difíceis',
 };
 
-function buildPrompt(difficulty) {
+function buildPrompt(difficulty, topic) {
   const diffLabel = DIFFICULTY_MAP[difficulty] || DIFFICULTY_MAP.misto;
-  return `Gere exatamente 20 questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}. 
-  Retorne APENAS o objeto JSON puro:
-  {
-    "questions": [
-      {
-        "category": "string",
-        "difficulty": "Fácil",
-        "question": "string",
-        "options": ["A", "B", "C", "D"],
-        "correct": 0,
-        "explanation": "string"
-      }
-    ]
-  }`;
+
+  const topicInstruction = (!topic || topic === 'Aleatório')
+    ? 'Escolha temas variados e interessantes.'
+    : `TODAS as 20 questões devem ser EXCLUSIVAMENTE sobre o tema: "${topic}". Não inclua perguntas de outros assuntos.`;
+
+  return `Gere exatamente 20 questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}.
+${topicInstruction}
+Retorne APENAS o objeto JSON puro, sem markdown, sem texto extra:
+{
+  "questions": [
+    {
+      "category": "string",
+      "difficulty": "Fácil",
+      "question": "string",
+      "options": ["A", "B", "C", "D"],
+      "correct": 0,
+      "explanation": "string"
+    }
+  ]
+}`;
 }
 
 module.exports = async function handler(req, res) {
@@ -36,14 +42,16 @@ module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
-  
+
   try {
+    const { difficulty, topic } = req.query;
+
     const response = await openai.chat.completions.create({
       model: 'google/gemini-2.0-flash-001',
       messages: [
-        { 
-          role: 'user', 
-          content: buildPrompt(req.query.difficulty) 
+        {
+          role: 'user',
+          content: buildPrompt(difficulty, topic)
         }
       ],
       temperature: 0.7
@@ -59,9 +67,9 @@ module.exports = async function handler(req, res) {
 
   } catch (err) {
     console.error('Erro na API:', err);
-    return res.status(500).json({ 
-      error: 'Erro na geração', 
-      details: err.message 
+    return res.status(500).json({
+      error: 'Erro na geração',
+      details: err.message
     });
   }
 };
