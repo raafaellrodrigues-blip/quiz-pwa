@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
     const response = await openai.chat.completions.create({
       // NOME DO MODELO: anthropic/claude-3.5-sonnet é o padrão. 
       // Se der erro 404 de novo, use 'google/gemini-flash-1.5-8b' para testar grátis.
-      model: 'anthropic/claude-3.5-sonnet', 
+      model: 'google/gemini-flash-1.5-8b', 
       messages: [{ role: 'user', content: buildPrompt(req.query.difficulty) }],
       temperature: 0.7
     });
