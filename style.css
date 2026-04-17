@@ -58,6 +58,20 @@ html, body {
 /* ═════════════════════════════════════════════
    LOADING
 ═════════════════════════════════════════════ */
+.app-logo-img {
+  width: 150px; /* Ajuste o tamanho conforme seu gosto */
+  height: auto;
+  z-index: 10;
+  position: relative;
+  filter: drop-shadow(0 0 10px rgba(123, 31, 162, 0.5)); /* Um brilho roxo leve */
+}
+
+.loading-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
 #screen-loading { align-items: center; justify-content: center; }
 .loading-inner  { text-align: center; width: 260px; }
 .loading-logo   { margin-bottom: 2.5rem; }
