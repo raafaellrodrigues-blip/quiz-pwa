@@ -58,22 +58,68 @@ html, body {
 /* ═════════════════════════════════════════════
    LOADING
 ═════════════════════════════════════════════ */
-#screen-loading { align-items: center; justify-content: center; }
-.loading-inner  { text-align: center; width: 260px; }
-.loading-logo   { margin-bottom: 2.5rem; }
-
-.logo-pulse {
-  width: 72px; height: 72px;
-  border-radius: 20px;
-  background: var(--accent-dim);
-  border: 1.5px solid var(--accent);
-  margin: 0 auto 1rem;
-  display: flex; align-items: center; justify-content: center;
-  animation: pulseBeat 1.4s ease-in-out infinite;
-  font-size: 32px; font-weight: 800; color: var(--accent);
+/* ═════════════════════════════════════════════
+   LOADING (VERSÃO ATUALIZADA COM LOGO)
+═════════════════════════════════════════════ */
+#screen-loading { 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
 }
-.logo-pulse::before { content: '?'; }
 
+.loading-inner { text-align: center; width: 260px; }
+
+/* Estilo para a imagem da sua logo */
+.app-logo-img {
+    width: 130px;      /* Tamanho da logo */
+    height: auto;
+    position: relative;
+    z-index: 10;       /* Fica na frente do brilho */
+    display: block;
+    margin: 0 auto;    /* Centraliza horizontalmente */
+}
+
+/* A caixa roxa agora vira apenas um efeito de brilho atrás da logo */
+.logo-pulse {
+    width: 80px; 
+    height: 80px;
+    border-radius: 50%; /* Fica circular para um brilho mais bonito */
+    background: var(--accent-dim);
+    border: 1.5px solid var(--accent);
+    margin: 0 auto -105px; /* Margem negativa puxa a imagem para cima do brilho */
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    animation: pulseBeat 1.4s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
+}
+
+/* REMOVE A INTERROGAÇÃO ANTIGA */
+.logo-pulse::before { content: none !important; }
+
+@keyframes pulseBeat {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-glow); }
+    50%      { transform: scale(1.1); box-shadow: 0 0 20px 10px transparent; }
+}
+
+.loading-bar-wrap {
+    height: 6px; 
+    background: var(--surface2);
+    border-radius: 999px; 
+    overflow: hidden; 
+    margin-top: 30px; /* Espaço entre a logo e a barra */
+    margin-bottom: 1rem;
+}
+
+.loading-bar {
+    height: 100%; 
+    width: 0%;
+    background: var(--accent);
+    border-radius: 999px;
+    transition: width 0.35s ease;
+    box-shadow: 0 0 8px var(--accent-glow);
+}
 @keyframes pulseBeat {
   0%,100% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-glow); }
   50%      { transform: scale(1.07); box-shadow: 0 0 0 10px transparent; }
