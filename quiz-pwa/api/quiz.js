@@ -1,6 +1,5 @@
 const OpenAI = require('openai');
 
-// Configura o cliente para usar o OpenRouter com a sua chave da Vercel
 const openai = new OpenAI({
   apiKey: process.env.ANTHROPIC_API_KEY,
   baseURL: "https://openrouter.ai/api/v1",
@@ -15,8 +14,8 @@ const DIFFICULTY_MAP = {
 
 function buildPrompt(difficulty) {
   const diffLabel = DIFFICULTY_MAP[difficulty] || DIFFICULTY_MAP.misto;
-  return `Gere exatamente 20 questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}.
-  RETORNE APENAS JSON:
+  return `Gere exatamente 20 questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}. 
+  Retorne APENAS o objeto JSON puro, sem explicações fora do JSON.
   {
     "questions": [
       {
@@ -40,16 +39,28 @@ module.exports = async function handler(req, res) {
   
   try {
     const response = await openai.chat.completions.create({
-      model: 'anthropic/claude-3.5-sonnet', // Nome do modelo no OpenRouter
+      // NOME DO MODELO: anthropic/claude-3.5-sonnet é o padrão. 
+      // Se der erro 404 de novo, use 'google/gemini-flash-1.5-8b' para testar grátis.
+      model: 'anthropic/claude-3.5-sonnet', 
       messages: [{ role: 'user', content: buildPrompt(req.query.difficulty) }],
-      response_format: { type: "json_object" }
+      temperature: 0.7
     });
 
-    const parsed = JSON.parse(response.choices[0].message.content);
+    const content = response.choices[0].message.content;
+    
+    // Tenta parsear o JSON. Se a IA mandar texto antes, filtramos.
+    const jsonStart = content.indexOf('{');
+    const jsonEnd = content.lastIndexOf('}') + 1;
+    const cleanJson = content.substring(jsonStart, jsonEnd);
+
+    const parsed = JSON.parse(cleanJson);
     return res.status(200).json(parsed);
 
   } catch (err) {
     console.error('Erro na API:', err);
-    return res.status(500).json({ error: 'Erro na geração', details: err.message });
+    return res.status(500).json({ 
+      error: 'Erro na geração', 
+      details: err.message 
+    });
   }
 };
