@@ -59,88 +59,69 @@ html, body {
    LOADING
 ═════════════════════════════════════════════ */
 /* ═════════════════════════════════════════════
-   LOADING (VERSÃO ATUALIZADA COM LOGO)
+   LOADING SCREEN - VERSÃO LIMPA E ALINHADA
 ═════════════════════════════════════════════ */
 #screen-loading { 
     display: flex; 
     align-items: center; 
-    justify-content: center; 
+    justify-content: center;
+    flex-direction: column; /* Alinha os itens em coluna */
 }
 
-.loading-inner { text-align: center; width: 260px; }
+.loading-inner { 
+    text-align: center; 
+    width: 280px; 
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
 
-/* Estilo para a imagem da sua logo */
+/* 1. Imagem da Logo */
 .app-logo-img {
-    width: 130px;      /* Tamanho da logo */
+    width: 140px;      
     height: auto;
-    position: relative;
-    z-index: 10;       /* Fica na frente do brilho */
     display: block;
-    margin: 0 auto;    /* Centraliza horizontalmente */
+    margin-bottom: 20px; /* Espaço para o círculo não encavalar */
 }
 
-/* A caixa roxa agora vira apenas um efeito de brilho atrás da logo */
+/* 2. Círculo de Animação */
 .logo-pulse {
-    width: 80px; 
-    height: 80px;
-    border-radius: 50%; /* Fica circular para um brilho mais bonito */
+    width: 60px; 
+    height: 60px;
+    border-radius: 50%;
     background: var(--accent-dim);
     border: 1.5px solid var(--accent);
-    margin: 0 auto -105px; /* Margem negativa puxa a imagem para cima do brilho */
     display: flex; 
     align-items: center; 
     justify-content: center;
     animation: pulseBeat 1.4s ease-in-out infinite;
-    position: relative;
-    z-index: 1;
+    margin-bottom: 25px; /* Espaço para a barra */
 }
 
-/* REMOVE A INTERROGAÇÃO ANTIGA */
+/* Remove a interrogação de vez */
 .logo-pulse::before { content: none !important; }
 
 @keyframes pulseBeat {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-glow); }
-    50%      { transform: scale(1.1); box-shadow: 0 0 20px 10px transparent; }
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50%      { transform: scale(1.15); opacity: 1; box-shadow: 0 0 20px var(--accent-glow); }
 }
 
+/* 3. Barra de Progresso */
 .loading-bar-wrap {
-    height: 6px; 
+    width: 100%;
+    height: 4px; 
     background: var(--surface2);
-    border-radius: 999px; 
+    border-radius: 10px; 
     overflow: hidden; 
-    margin-top: 30px; /* Espaço entre a logo e a barra */
-    margin-bottom: 1rem;
+    margin-bottom: 15px;
 }
 
 .loading-bar {
     height: 100%; 
     width: 0%;
     background: var(--accent);
-    border-radius: 999px;
     transition: width 0.35s ease;
-    box-shadow: 0 0 8px var(--accent-glow);
 }
-@keyframes pulseBeat {
-  0%,100% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-glow); }
-  50%      { transform: scale(1.07); box-shadow: 0 0 0 10px transparent; }
-}
-
-.logo-text  { font-size: 28px; font-weight: 800; letter-spacing: -.5px; }
-.accent     { color: var(--accent); }
-
-.loading-bar-wrap {
-  height: 4px; background: var(--surface2);
-  border-radius: 999px; overflow: hidden; margin-bottom: 1rem;
-}
-.loading-bar {
-  height: 100%; width: 0%;
-  background: var(--accent);
-  border-radius: 999px;
-  transition: width 0.35s ease;
-  box-shadow: 0 0 8px var(--accent-glow);
-}
-.loading-msg { font-size: 13px; color: var(--text2); font-family: var(--mono); }
-
 /* ═════════════════════════════════════════════
    HOME
 ═════════════════════════════════════════════ */
