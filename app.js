@@ -1,16 +1,21 @@
 /* =============================================
-   QUIZ IA — app.js  v2.0
-   Correções: avanço de perguntas, gamificação
-   completa, XP, níveis, combo visual
+   QUIZ IA — app.js  v3.0
+   Melhorias: Streaks, Medalhas por categoria,
+   Histórico local, Skeleton loading, Modo desafio,
+   Barra de loading da IA, Feedback visual aprimorado
    ============================================= */
 
 const CONFIG = {
   TOTAL_QUESTIONS: 10,
   TIMER_SECONDS: 30,
+  CHALLENGE_SECONDS: 15,
   CACHE_KEY: 'quizia_cache_v3',
   CACHE_TTL_MS: 1000 * 60 * 60 * 6,
   LEADERBOARD_KEY: 'quizia_leaderboard_v2',
   STATS_KEY: 'quizia_stats_v2',
+  STREAK_KEY: 'quizia_streak_v1',
+  HISTORY_KEY: 'quizia_history_v1',
+  BADGES_KEY: 'quizia_badges_v1',
   API_ENDPOINT: '/api/quiz',
   POINTS: { easy: 10, medium: 15, hard: 25 },
   COMBO_BONUS: 5,
@@ -24,6 +29,18 @@ const CONFIG = {
     { name: 'Especialista', min: 900,  icon: '⚡' },
     { name: 'Mestre',       min: 1400, icon: '🏆' },
     { name: 'Lenda',        min: 2000, icon: '🌟' },
+  ],
+  CATEGORY_BADGES: [
+    { id: 'medico',     label: '🩺 Clínico Geral',   topics: ['Medicina','Enfermagem','Fisioterapia'], threshold: 7 },
+    { id: 'tecno',      label: '💻 Dev Master',       topics: ['Programação','TI','Redes'],            threshold: 7 },
+    { id: 'juridico',   label: '⚖️ Defensor',         topics: ['Direito','Concursos'],                 threshold: 7 },
+    { id: 'cientista',  label: '🔬 Cientista',        topics: ['Física','Química','Biologia'],         threshold: 7 },
+    { id: 'humanista',  label: '🌎 Humanista',        topics: ['História','Geografia','Filosofia'],    threshold: 7 },
+    { id: 'matematico', label: '➗ Calculista',       topics: ['Matemática','R. Lógico'],              threshold: 7 },
+    { id: 'poliglota',  label: '🗣️ Poliglota',        topics: ['Inglês','Espanhol','Português'],       threshold: 7 },
+    { id: 'enem_ace',   label: '🎓 Craque do ENEM',  topics: ['ENEM','Vestibulares'],                 threshold: 8 },
+    { id: 'perfecto',   label: '🏅 Perfeito',         topics: [], threshold: 10, special: 'perfect' },
+    { id: 'streak7',    label: '🔥 7 Dias Seguidos', topics: [], threshold: 7,  special: 'streak'  },
   ],
 };
 
@@ -49,9 +66,13 @@ window.addEventListener('DOMContentLoaded', () => {
   monitorOffline();
   G.xp    = getStats().totalXP || 0;
   G.level = computeLevel(G.xp);
+  updateStreak();
 
   const lbBtn = document.getElementById('btn-leaderboard');
   if (lbBtn) lbBtn.addEventListener('click', showLeaderboard);
+
+  const pgBtn = document.getElementById('btn-progress');
+  if (pgBtn) pgBtn.addEventListener('click', showProgress);
 
   setTimeout(boot, 200);
 });
@@ -97,6 +118,10 @@ function selectMode(el, mode) {
   document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   G.mode = mode;
+  const hint = document.getElementById('start-hint');
+  if (mode === 'desafio') hint.textContent = '10 perguntas • 15s por questão • modo hardcore';
+  else if (mode === 'rapido') hint.textContent = '10 perguntas • 30s por questão';
+  else hint.textContent = '10 perguntas • novas a cada partida';
 }
 
 function selectDiff(el, diff) {
@@ -111,22 +136,62 @@ async function startGame() {
   const label = document.getElementById('btn-start-label');
   const hint  = document.getElementById('start-hint');
 
-  btn.disabled  = true;
-  label.textContent = 'Gerando perguntas...';
-  hint.textContent  = 'A IA está criando questões únicas ✨';
+  btn.disabled = true;
+  showSkeletonLoading(label, hint);
 
   try {
     const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
     const qs = await fetchQuestions(G.difficulty, tema);
     Object.assign(G, { questions: qs, idx: 0, score: 0, combo: 0, maxCombo: 0, correct: 0, answered: false });
+    hideSkeletonLoading(label, hint);
     showScreen('quiz');
     renderQuestion();
   } catch (err) {
     console.error(err);
+    hideSkeletonLoading(label, hint);
     hint.textContent  = '❌ Erro. Verifique a API key no Vercel.';
     label.textContent = 'Tentar novamente';
     btn.disabled = false;
   }
+}
+
+// ── SKELETON / LOADING DA IA ──────────────────
+let skeletonInterval = null;
+const skeletonMsgs = [
+  'A IA está pensando... 🧠',
+  'Gerando questões únicas... ✨',
+  'Verificando dificuldade... 📊',
+  'Quase pronto... 🚀',
+  'Finalizando perguntas... 📝',
+];
+
+function showSkeletonLoading(label, hint) {
+  const overlay = document.getElementById('ai-loading-overlay');
+  if (overlay) overlay.style.display = 'flex';
+  let msgIdx = 0;
+  label.textContent = skeletonMsgs[0];
+  hint.textContent  = 'Isso pode levar alguns segundos...';
+  skeletonInterval = setInterval(() => {
+    msgIdx = (msgIdx + 1) % skeletonMsgs.length;
+    label.textContent = skeletonMsgs[msgIdx];
+    const bar = document.getElementById('ai-loading-bar');
+    if (bar) {
+      const cur = parseFloat(bar.style.width) || 0;
+      bar.style.width = Math.min(90, cur + Math.random() * 14) + '%';
+    }
+  }, 1200);
+}
+
+function hideSkeletonLoading(label, hint) {
+  clearInterval(skeletonInterval);
+  const overlay = document.getElementById('ai-loading-overlay');
+  if (overlay) {
+    const bar = document.getElementById('ai-loading-bar');
+    if (bar) bar.style.width = '100%';
+    setTimeout(() => { overlay.style.display = 'none'; if(bar) bar.style.width = '0%'; }, 400);
+  }
+  label.textContent = 'Gerar Quiz com IA';
+  hint.textContent  = '10 perguntas • novas a cada partida';
 }
 
 // ── CACHE / FETCH ─────────────────────────────
@@ -165,23 +230,18 @@ function renderQuestion() {
   G.answered = false;
   if (G.timer) clearInterval(G.timer);
 
-  // Progresso
   const pct = Math.round(((G.idx + 1) / CONFIG.TOTAL_QUESTIONS) * 100);
   document.getElementById('q-progress').style.width = pct + '%';
   document.getElementById('q-counter').textContent  = (G.idx + 1) + '/' + CONFIG.TOTAL_QUESTIONS;
   document.getElementById('live-score').textContent  = G.score;
   renderXPBar();
 
-  // Meta
   document.getElementById('q-cat').textContent = q.category;
   const diffEl = document.getElementById('q-diff');
   diffEl.textContent = q.difficulty;
   diffEl.className   = 'q-diff ' + ({ 'Fácil': 'easy', 'Médio': 'medium', 'Difícil': 'hard' }[q.difficulty] || '');
 
-  // Texto da questão
   document.getElementById('q-text').textContent = q.question;
-
-  // Limpa área de explicação e efeitos
   document.getElementById('explanation-box').style.display = 'none';
   document.getElementById('explanation-box').innerHTML     = '';
   document.getElementById('combo-toast').className         = 'combo-toast';
@@ -189,15 +249,13 @@ function renderQuestion() {
   const pf = document.getElementById('pts-flash');
   if (pf) { pf.textContent = ''; pf.className = 'pts-flash'; }
 
-  // ── BOTÃO PRÓXIMA: recria para não acumular listeners ──
   const oldBtn = document.getElementById('btn-next');
   const newBtn = oldBtn.cloneNode(true);
   newBtn.style.display = 'none';
   newBtn.addEventListener('click', nextQuestion);
   oldBtn.parentNode.replaceChild(newBtn, oldBtn);
 
-  // Opções
-  const list    = document.getElementById('options-list');
+  const list = document.getElementById('options-list');
   list.innerHTML = '';
   ['A','B','C','D'].forEach((letter, i) => {
     const btn = document.createElement('button');
@@ -207,15 +265,15 @@ function renderQuestion() {
     list.appendChild(btn);
   });
 
-  // Timer
   const tw = document.getElementById('timer-wrap');
-  if (G.mode === 'rapido') {
+  if (G.mode === 'rapido' || G.mode === 'desafio') {
+    const timerSecs = G.mode === 'desafio' ? CONFIG.CHALLENGE_SECONDS : CONFIG.TIMER_SECONDS;
     tw.style.display = 'block';
-    G.timeLeft = CONFIG.TIMER_SECONDS;
-    updateRing(G.timeLeft, CONFIG.TIMER_SECONDS);
+    G.timeLeft = timerSecs;
+    updateRing(G.timeLeft, timerSecs);
     G.timer = setInterval(() => {
       G.timeLeft--;
-      updateRing(G.timeLeft, CONFIG.TIMER_SECONDS);
+      updateRing(G.timeLeft, timerSecs);
       if (G.timeLeft <= 0) { clearInterval(G.timer); autoTimeout(); }
     }, 1000);
   } else {
@@ -240,7 +298,7 @@ function updateRing(cur, total) {
   const ring = document.getElementById('ring-fill');
   ring.style.strokeDasharray = Math.max(0, Math.round(circ * cur / total)) + ' ' + circ;
   document.getElementById('timer-num').textContent = cur;
-  ring.classList.toggle('warn', cur <= 10);
+  ring.classList.toggle('warn', cur <= 5);
 }
 
 // ── RESPOSTA ──────────────────────────────────
@@ -294,20 +352,15 @@ function autoTimeout() {
   document.getElementById('btn-next').style.display = 'flex';
 }
 
-// ── EXPLICAÇÃO FOCO NA RESPOSTA CORRETA ───────
 function showExplanation(ok, text, correctOption, timeout) {
   const box = document.getElementById('explanation-box');
   box.className = 'explanation-box ' + (ok ? 'correct-exp' : 'wrong-exp');
-
   const icon  = ok ? '✓' : timeout ? '⏱' : '✗';
   const label = ok ? 'Correto!' : timeout ? 'Tempo esgotado!' : 'Incorreto!';
   const color = ok ? 'var(--green)' : 'var(--red)';
-
-  // Divide em frase de destaque + detalhe
   const parts    = text.split(/(?<=[.!?])\s+/);
   const headline = parts[0] || text;
   const detail   = parts.slice(1).join(' ');
-
   box.innerHTML =
     '<div class="exp-header">' +
       '<span class="exp-status" style="color:' + color + '">' + icon + ' ' + label + '</span>' +
@@ -315,7 +368,6 @@ function showExplanation(ok, text, correctOption, timeout) {
     '</div>' +
     '<p class="exp-headline">' + headline + '</p>' +
     (detail ? '<p class="exp-detail">' + detail + '</p>' : '');
-
   box.style.display = 'block';
 }
 
@@ -325,7 +377,7 @@ function showPtsFlash(text, ok) {
   if (!el) return;
   el.textContent = text;
   el.className   = 'pts-flash ' + (ok ? 'pts-ok' : 'pts-fail');
-  void el.offsetHeight;           // força reflow para reiniciar animação CSS
+  void el.offsetHeight;
 }
 
 function showComboToast(combo, pts) {
@@ -342,15 +394,12 @@ function showComboToast(combo, pts) {
 function nextQuestion() {
   G.idx++;
   if (G.idx >= CONFIG.TOTAL_QUESTIONS) { showResults(); return; }
-
   const body = document.querySelector('.quiz-body');
   body.style.transition = 'opacity .18s ease, transform .18s ease';
   body.style.opacity    = '0';
   body.style.transform  = 'translateX(28px)';
-
   setTimeout(() => {
     renderQuestion();
-    // pequeno delay para o DOM atualizar antes de animar entrada
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         body.style.transition = 'opacity .25s ease, transform .25s ease';
@@ -385,9 +434,16 @@ function showResults() {
   const rlv = document.getElementById('r-level');
   if (rlv) rlv.textContent = CONFIG.LEVELS[G.level].icon + ' ' + CONFIG.LEVELS[G.level].name;
 
-  document.getElementById('ach-list').innerHTML = computeAchievements(pct)
-    .map(a => '<span class="ach-badge ' + (a.earned ? 'earned' : '') + '">' + a.label + '</span>')
-    .join('');
+  const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
+  saveHistory({ date: new Date().toLocaleDateString('pt-BR'), tema, mode: G.mode, correct: G.correct, total: CONFIG.TOTAL_QUESTIONS, score: G.score, pct });
+
+  const newBadges    = checkCategoryBadges(tema, G.correct, pct);
+  const achievements = computeAchievements(pct);
+
+  document.getElementById('ach-list').innerHTML = [
+    ...achievements.map(a => '<span class="ach-badge ' + (a.earned ? 'earned' : '') + '">' + a.label + '</span>'),
+    ...newBadges.map(b => '<span class="ach-badge earned new-badge">' + b + ' <span class="badge-new">NOVO!</span></span>'),
+  ].join('');
 
   saveScore(G.score, G.mode, pct);
   saveStats(G.correct, CONFIG.TOTAL_QUESTIONS, G.score, G.xp);
@@ -399,15 +455,18 @@ function showResults() {
 }
 
 function computeAchievements(pct) {
+  const streak = getStreak();
   return [
     { label: '🏅 Nota 10',        earned: pct === 100 },
     { label: '🔥 Combo x5',       earned: G.maxCombo >= 5 },
-    { label: '⚡ Relâmpago',      earned: G.mode === 'rapido' && pct >= 60 },
+    { label: '⚡ Relâmpago',      earned: (G.mode === 'rapido' || G.mode === 'desafio') && pct >= 60 },
+    { label: '💀 Desafio 15s',    earned: G.mode === 'desafio' && pct >= 50 },
     { label: '🎯 Precisão 80%',   earned: pct >= 80 },
     { label: '💪 3 Partidas',     earned: getTotalGames() >= 3 },
     { label: '🧠 Expert Difícil', earned: G.difficulty === 'dificil' && pct >= 70 },
     { label: '📚 Veterano',       earned: getTotalGames() >= 10 },
     { label: '🌟 500 XP',         earned: G.xp >= 500 },
+    { label: '🔥 ' + streak + ' dias',  earned: streak >= 3 },
   ];
 }
 
@@ -416,6 +475,96 @@ function computeLevel(xp) {
   let lv = 0;
   CONFIG.LEVELS.forEach((l, i) => { if (xp >= l.min) lv = i; });
   return lv;
+}
+
+// ── STREAKS ───────────────────────────────────
+function updateStreak() {
+  try {
+    const s = JSON.parse(localStorage.getItem(CONFIG.STREAK_KEY)) || { streak: 0, lastDate: null };
+    const today     = new Date().toDateString();
+    const yesterday = new Date(Date.now() - 86400000).toDateString();
+    if (s.lastDate === today) return;
+    s.streak = (s.lastDate === yesterday) ? (s.streak || 0) + 1 : 1;
+    s.lastDate = today;
+    localStorage.setItem(CONFIG.STREAK_KEY, JSON.stringify(s));
+  } catch(e) { console.warn('streak err', e); }
+}
+
+function getStreak() {
+  try { return JSON.parse(localStorage.getItem(CONFIG.STREAK_KEY))?.streak || 0; }
+  catch { return 0; }
+}
+
+// ── MEDALHAS POR CATEGORIA ────────────────────
+function checkCategoryBadges(tema, correct, pct) {
+  const earned = JSON.parse(localStorage.getItem(CONFIG.BADGES_KEY) || '[]');
+  const newOnes = [];
+  CONFIG.CATEGORY_BADGES.forEach(b => {
+    if (earned.includes(b.id)) return;
+    const qualifies = b.special === 'perfect' ? pct === 100
+                    : b.special === 'streak'  ? getStreak() >= b.threshold
+                    : b.topics.includes(tema) && correct >= b.threshold;
+    if (qualifies) { earned.push(b.id); newOnes.push(b.label); }
+  });
+  if (newOnes.length) localStorage.setItem(CONFIG.BADGES_KEY, JSON.stringify(earned));
+  return newOnes;
+}
+
+function getAllBadges() {
+  const earned = JSON.parse(localStorage.getItem(CONFIG.BADGES_KEY) || '[]');
+  return CONFIG.CATEGORY_BADGES.map(b => ({ ...b, earned: earned.includes(b.id) }));
+}
+
+// ── HISTÓRICO LOCAL ───────────────────────────
+function saveHistory(entry) {
+  try {
+    const h = JSON.parse(localStorage.getItem(CONFIG.HISTORY_KEY) || '[]');
+    h.unshift(entry);
+    localStorage.setItem(CONFIG.HISTORY_KEY, JSON.stringify(h.slice(0, 50)));
+  } catch(e) { console.warn('history err', e); }
+}
+
+function getHistory() {
+  try { return JSON.parse(localStorage.getItem(CONFIG.HISTORY_KEY)) || []; }
+  catch { return []; }
+}
+
+function showProgress() {
+  const history = getHistory();
+  const badges  = getAllBadges();
+  const streak  = getStreak();
+
+  const streakEl = document.getElementById('progress-streak');
+  if (streakEl) streakEl.textContent = streak + ' dia' + (streak !== 1 ? 's' : '') + ' seguidos 🔥';
+
+  const badgeList = document.getElementById('progress-badges');
+  if (badgeList) {
+    badgeList.innerHTML = badges.map(b =>
+      '<span class="ach-badge ' + (b.earned ? 'earned' : '') + '">' +
+        b.label + (b.earned ? '' : ' 🔒') +
+      '</span>'
+    ).join('');
+  }
+
+  const list = document.getElementById('progress-list');
+  if (list) {
+    list.innerHTML = history.length
+      ? history.map(e =>
+          '<div class="history-row">' +
+            '<div class="history-meta">' +
+              '<span class="history-date">' + e.date + '</span>' +
+              '<span class="history-tema">' + (e.tema || 'Aleatório') + '</span>' +
+            '</div>' +
+            '<div class="history-stats">' +
+              '<span class="history-correct">' + e.correct + '/' + e.total + '</span>' +
+              '<span class="history-score ' + (e.pct >= 70 ? 'good' : e.pct >= 40 ? 'ok' : 'bad') + '">' + e.pct + '%</span>' +
+            '</div>' +
+          '</div>'
+        ).join('')
+      : '<p class="lb-empty">Nenhuma partida ainda.</p>';
+  }
+
+  showScreen('progress');
 }
 
 // ── LEADERBOARD ───────────────────────────────
@@ -438,7 +587,7 @@ function showLeaderboard() {
         '<div class="lb-row">' +
           '<span class="lb-rank ' + (medals[i]||'') + '">' + (i+1) + '°</span>' +
           '<div style="flex:1">' +
-            '<div class="lb-name">' + e.date + ' — ' + (e.mode==='rapido' ? '⚡ Rápido' : '📖 Estudo') + '</div>' +
+            '<div class="lb-name">' + e.date + ' — ' + (e.mode==='rapido' ? '⚡ Rápido' : e.mode==='desafio' ? '💀 Desafio' : '📖 Estudo') + '</div>' +
             '<div class="lb-mode">' + e.acc + '% de precisão</div>' +
           '</div>' +
           '<span class="lb-score">' + e.score + ' pts</span>' +
@@ -451,6 +600,9 @@ function clearLeaderboard() {
   if (!confirm('Limpar todo o histórico?')) return;
   localStorage.removeItem(CONFIG.LEADERBOARD_KEY);
   localStorage.removeItem(CONFIG.STATS_KEY);
+  localStorage.removeItem(CONFIG.HISTORY_KEY);
+  localStorage.removeItem(CONFIG.BADGES_KEY);
+  localStorage.removeItem(CONFIG.STREAK_KEY);
   G.xp = 0; G.level = 0;
   showLeaderboard();
   loadHomeStats();
@@ -473,7 +625,8 @@ function getStats() {
 function getTotalGames() { return getStats().totalGames || 0; }
 
 function loadHomeStats() {
-  const s   = getStats();
+  const s      = getStats();
+  const streak = getStreak();
   if (!s.totalGames) return;
   const acc = s.totalAnswered ? Math.round((s.totalCorrect / s.totalAnswered) * 100) : 0;
   document.getElementById('hs-record').textContent = s.bestScore || 0;
@@ -481,6 +634,12 @@ function loadHomeStats() {
   document.getElementById('hs-acc').textContent    = acc + '%';
   const lbl = document.getElementById('hs-level');
   if (lbl) lbl.textContent = CONFIG.LEVELS[G.level].icon + ' ' + CONFIG.LEVELS[G.level].name;
+  const streakEl = document.getElementById('hs-streak');
+  if (streakEl) {
+    streakEl.textContent = streak + (streak >= 3 ? '🔥' : '');
+    const streakParent = streakEl.closest('.hstat');
+    if (streakParent) streakParent.style.display = streak > 0 ? '' : 'none';
+  }
   document.getElementById('home-stats').style.display = 'flex';
 }
 
