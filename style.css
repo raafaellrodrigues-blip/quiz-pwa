@@ -526,3 +526,95 @@ html, body {
   color: var(--gold); padding: 6px 16px; border-radius: 999px;
   font-size: 12px; font-family: var(--font-mono); z-index: 200; animation: fadeIn 0.3s ease;
 }
+
+/* ===== LEVEL UP TOAST ===== */
+.levelup-toast {
+  position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
+  background: linear-gradient(135deg, var(--accent), #9d95ff);
+  color: #fff; padding: 12px 24px;
+  border-radius: 999px; font-size: 15px; font-weight: 700;
+  font-family: var(--font-head);
+  box-shadow: 0 4px 24px var(--accent-glow);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  z-index: 300; white-space: nowrap;
+}
+.levelup-toast.show {
+  opacity: 1; transform: translateX(-50%) translateY(0);
+}
+
+/* ===== HOME MOTIVATION ===== */
+.home-motivation {
+  font-size: 13px; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid var(--accent);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  margin-top: 1rem; line-height: 1.5;
+  font-family: var(--font-mono);
+}
+
+/* ===== LAST TOPIC HINT ===== */
+.last-topic-hint {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px dashed var(--accent);
+  border-radius: var(--radius-sm); padding: 10px 14px;
+  color: var(--text2); font-size: 13px;
+  font-family: var(--font-head); cursor: pointer;
+  margin-top: .75rem; width: 100%;
+  transition: var(--transition);
+}
+.last-topic-hint:hover { background: var(--accent-dim); color: var(--text); }
+.last-topic-hint strong { color: var(--accent); }
+
+/* ===== AI LOADING OVERLAY (if not already in css) ===== */
+.ai-loading-overlay {
+  position: fixed; inset: 0;
+  background: rgba(15,15,19,0.95);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; flex-direction: column;
+}
+.ai-loading-inner { text-align: center; width: 280px; }
+.ai-loading-icon { font-size: 48px; margin-bottom: 1rem; animation: pulse 1.4s ease-in-out infinite; }
+.ai-loading-title { font-size: 16px; font-weight: 700; margin-bottom: 1.25rem; }
+.skeleton-lines { display: flex; flex-direction: column; gap: 8px; margin-bottom: 1.25rem; }
+.skeleton-line {
+  height: 10px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface2) 25%, var(--surface) 50%, var(--surface2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+.skeleton-line.w80 { width: 80%; margin: 0 auto; }
+.skeleton-line.w60 { width: 60%; margin: 0 auto; }
+.skeleton-line.w90 { width: 90%; margin: 0 auto; }
+.skeleton-line.w70 { width: 70%; margin: 0 auto; }
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.ai-bar-wrap { height: 4px; background: var(--surface2); border-radius: 999px; overflow: hidden; margin-bottom: .75rem; }
+.ai-loading-bar { height: 100%; width: 0%; background: var(--accent); border-radius: 999px; transition: width 0.4s ease; box-shadow: 0 0 8px var(--accent-glow); }
+.ai-loading-sub { font-size: 12px; color: var(--text2); font-family: var(--font-mono); }
+
+/* ===== PROGRESS CHART ===== */
+.progress-chart-section { margin-bottom: 1.5rem; }
+#progress-chart { display: none; margin-top: .75rem; }
+.chart-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.chart-label { font-size: 12px; color: var(--text2); width: 90px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chart-bar-wrap { flex: 1; height: 8px; background: var(--surface2); border-radius: 999px; overflow: hidden; }
+.chart-bar { height: 100%; border-radius: 999px; transition: width 0.6s ease; min-width: 4px; }
+.chart-bar.good { background: var(--green); }
+.chart-bar.ok   { background: var(--gold); }
+.chart-bar.bad  { background: var(--red); }
+.chart-pct { font-size: 12px; font-family: var(--font-mono); font-weight: 700; width: 36px; text-align: right; flex-shrink: 0; }
+
+/* ===== BTN-NEXT auto countdown ===== */
+#btn-next { min-width: 130px; justify-content: center; }
+
+/* ===== EXP HEADLINE/DETAIL ===== */
+.exp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; flex-wrap: wrap; gap: 4px; }
+.exp-correct-lbl { font-size: 12px; color: var(--text2); }
+.exp-headline { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.5; margin-bottom: .35rem; }
+.exp-detail { font-size: 12px; color: var(--text2); line-height: 1.6; }

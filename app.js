@@ -1,14 +1,15 @@
 /* =============================================
-   QUIZ IA — app.js  v3.0
-   Melhorias: Streaks, Medalhas por categoria,
-   Histórico local, Skeleton loading, Modo desafio,
-   Barra de loading da IA, Feedback visual aprimorado
+   QUIZ IA — app.js  v4.0
+   Melhorias: confete, auto-next, level-up toast,
+   prefetch silencioso, motivação na home,
+   sugestão de último tema, gráfico por tema
    ============================================= */
 
 const CONFIG = {
   TOTAL_QUESTIONS: 10,
   TIMER_SECONDS: 30,
   CHALLENGE_SECONDS: 15,
+  AUTO_NEXT_DELAY: 2500,
   CACHE_KEY: 'quizia_cache_v3',
   CACHE_TTL_MS: 1000 * 60 * 60 * 6,
   LEADERBOARD_KEY: 'quizia_leaderboard_v2',
@@ -16,6 +17,7 @@ const CONFIG = {
   STREAK_KEY: 'quizia_streak_v1',
   HISTORY_KEY: 'quizia_history_v1',
   BADGES_KEY: 'quizia_badges_v1',
+  LAST_TOPIC_KEY: 'quizia_last_topic_v1',
   API_ENDPOINT: '/api/quiz',
   POINTS: { easy: 10, medium: 15, hard: 25 },
   COMBO_BONUS: 5,
@@ -42,6 +44,15 @@ const CONFIG = {
     { id: 'perfecto',   label: '🏅 Perfeito',         topics: [], threshold: 10, special: 'perfect' },
     { id: 'streak7',    label: '🔥 7 Dias Seguidos', topics: [], threshold: 7,  special: 'streak'  },
   ],
+  MOTIVATIONAL: [
+    '💡 Dica: tente o modo Desafio para mais XP!',
+    '🎯 Meta: acerte 80% e ganhe a conquista de precisão.',
+    '🔥 Jogue todo dia para manter sua ofensiva!',
+    '📚 Experimente temas diferentes para novas medalhas.',
+    '⚡ No modo Rápido você ganha a conquista Relâmpago.',
+    '🏆 Chegue ao nível Mestre com 1400 XP!',
+    '🧠 Questões Difíceis valem 25 pts — vai encarar?',
+  ],
 };
 
 let G = {
@@ -55,9 +66,12 @@ let G = {
   correct: 0,
   answered: false,
   timer: null,
+  autoNextTimer: null,
+  autoNextTick: null,
   timeLeft: CONFIG.TIMER_SECONDS,
   xp: 0,
   level: 0,
+  prevLevel: 0,
 };
 
 // ── BOOT ──────────────────────────────────────
@@ -66,13 +80,11 @@ window.addEventListener('DOMContentLoaded', () => {
   monitorOffline();
   G.xp    = getStats().totalXP || 0;
   G.level = computeLevel(G.xp);
+  G.prevLevel = G.level;
   updateStreak();
 
-  const lbBtn = document.getElementById('btn-leaderboard');
-  if (lbBtn) lbBtn.addEventListener('click', showLeaderboard);
-
-  const pgBtn = document.getElementById('btn-progress');
-  if (pgBtn) pgBtn.addEventListener('click', showProgress);
+  document.getElementById('btn-leaderboard')?.addEventListener('click', showLeaderboard);
+  document.getElementById('btn-progress')?.addEventListener('click', showProgress);
 
   setTimeout(boot, 200);
 });
@@ -80,7 +92,12 @@ window.addEventListener('DOMContentLoaded', () => {
 function boot() {
   animateLoading(
     ['Conectando com a IA...', 'Carregando sistema...', 'Pronto!'],
-    () => { loadHomeStats(); showScreen('home'); }
+    () => {
+      loadHomeStats();
+      showLastTopicSuggestion();
+      prefetchQuestions();
+      showScreen('home');
+    }
   );
 }
 
@@ -97,6 +114,43 @@ function animateLoading(msgs, cb) {
   }, 480);
 }
 
+// ── MOTIVAÇÃO ─────────────────────────────────
+function showMotivation() {
+  const el = document.getElementById('home-motivation');
+  if (!el) return;
+  const tip = CONFIG.MOTIVATIONAL[Math.floor(Math.random() * CONFIG.MOTIVATIONAL.length)];
+  el.textContent = tip;
+  el.style.display = 'block';
+}
+
+// ── ÚLTIMO TEMA ───────────────────────────────
+function showLastTopicSuggestion() {
+  try {
+    const last = JSON.parse(localStorage.getItem(CONFIG.LAST_TOPIC_KEY));
+    if (!last) return;
+    const el = document.getElementById('last-topic-hint');
+    if (!el) return;
+    el.innerHTML = 'Continuar em <strong>' + last.icon + ' ' + last.label + '</strong>?';
+    el.style.display = 'flex';
+    el.onclick = () => {
+      if (window.selectTopic) window.selectTopic(last.icon, last.label, last.key);
+      el.style.display = 'none';
+    };
+  } catch(e) {}
+}
+
+// ── PREFETCH ──────────────────────────────────
+function prefetchQuestions() {
+  const key = CONFIG.CACHE_KEY + '_misto_Aleatório';
+  if (getCached(key)) return;
+  setTimeout(() => {
+    fetch(CONFIG.API_ENDPOINT + '?difficulty=misto&topic=Aleat%C3%B3rio')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data && data.questions) setCache(key, data.questions); })
+      .catch(() => {});
+  }, 2500);
+}
+
 // ── NAVEGAÇÃO ─────────────────────────────────
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -107,6 +161,8 @@ function showScreen(name) {
 function goHome() {
   closeModal();
   if (G.timer) clearInterval(G.timer);
+  if (G.autoNextTimer) clearTimeout(G.autoNextTimer);
+  if (G.autoNextTick) clearInterval(G.autoNextTick);
   loadHomeStats();
   showScreen('home');
 }
@@ -119,9 +175,9 @@ function selectMode(el, mode) {
   el.classList.add('selected');
   G.mode = mode;
   const hint = document.getElementById('start-hint');
-  if (mode === 'desafio') hint.textContent = '10 perguntas • 15s por questão • modo hardcore';
+  if (mode === 'desafio')     hint.textContent = '10 perguntas • 15s por questão • modo hardcore';
   else if (mode === 'rapido') hint.textContent = '10 perguntas • 30s por questão';
-  else hint.textContent = '10 perguntas • novas a cada partida';
+  else                        hint.textContent = '10 perguntas • avança automático após resposta';
 }
 
 function selectDiff(el, diff) {
@@ -140,9 +196,17 @@ async function startGame() {
   showSkeletonLoading(label, hint);
 
   try {
-    const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
+    const topicObj = window.getSelectedTopic ? window.getSelectedTopic() : { icon:'🎲', label:'Aleatório', key:'Aleatório' };
+    const tema = topicObj.label;
+
+    try { localStorage.setItem(CONFIG.LAST_TOPIC_KEY, JSON.stringify(topicObj)); } catch(e) {}
+
     const qs = await fetchQuestions(G.difficulty, tema);
-    Object.assign(G, { questions: qs, idx: 0, score: 0, combo: 0, maxCombo: 0, correct: 0, answered: false });
+    Object.assign(G, {
+      questions: qs, idx: 0, score: 0, combo: 0,
+      maxCombo: 0, correct: 0, answered: false,
+      prevLevel: G.level,
+    });
     hideSkeletonLoading(label, hint);
     showScreen('quiz');
     renderQuestion();
@@ -195,7 +259,8 @@ function hideSkeletonLoading(label, hint) {
 }
 
 // ── CACHE / FETCH ─────────────────────────────
-async function fetchQuestions(diff, tema = 'Aleatório') {
+async function fetchQuestions(diff, tema) {
+  tema = tema || 'Aleatório';
   const key    = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
   const cached = getCached(key);
   if (cached) { console.log('Cache hit:', diff, tema); return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); }
@@ -211,9 +276,9 @@ function getCached(key) {
   try {
     const r = localStorage.getItem(key);
     if (!r) return null;
-    const { ts, data } = JSON.parse(r);
-    if (Date.now() - ts > CONFIG.CACHE_TTL_MS) { localStorage.removeItem(key); return null; }
-    return data;
+    const parsed = JSON.parse(r);
+    if (Date.now() - parsed.ts > CONFIG.CACHE_TTL_MS) { localStorage.removeItem(key); return null; }
+    return parsed.data;
   } catch { return null; }
 }
 
@@ -229,6 +294,8 @@ function renderQuestion() {
 
   G.answered = false;
   if (G.timer) clearInterval(G.timer);
+  if (G.autoNextTimer) clearTimeout(G.autoNextTimer);
+  if (G.autoNextTick) clearInterval(G.autoNextTick);
 
   const pct = Math.round(((G.idx + 1) / CONFIG.TOTAL_QUESTIONS) * 100);
   document.getElementById('q-progress').style.width = pct + '%';
@@ -250,8 +317,9 @@ function renderQuestion() {
   if (pf) { pf.textContent = ''; pf.className = 'pts-flash'; }
 
   const oldBtn = document.getElementById('btn-next');
-  const newBtn = oldBtn.cloneNode(true);
+  const newBtn = oldBtn.cloneNode(false);
   newBtn.style.display = 'none';
+  newBtn.innerHTML = 'Próxima <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
   newBtn.addEventListener('click', nextQuestion);
   oldBtn.parentNode.replaceChild(newBtn, oldBtn);
 
@@ -260,7 +328,7 @@ function renderQuestion() {
   ['A','B','C','D'].forEach((letter, i) => {
     const btn = document.createElement('button');
     btn.className = 'option-btn';
-    btn.innerHTML = `<span class="opt-letter">${letter}</span><span class="opt-text">${q.options[i]}</span>`;
+    btn.innerHTML = '<span class="opt-letter">' + letter + '</span><span class="opt-text">' + q.options[i] + '</span>';
     btn.addEventListener('click', () => selectAnswer(i));
     list.appendChild(btn);
   });
@@ -326,7 +394,13 @@ function selectAnswer(idx) {
     const earned = base + bonus;
     G.score += earned;
     G.xp    += CONFIG.XP_PER_CORRECT;
-    G.level  = computeLevel(G.xp);
+    const newLevel = computeLevel(G.xp);
+    if (newLevel > G.level) {
+      G.level = newLevel;
+      showLevelUp(newLevel);
+    } else {
+      G.level = newLevel;
+    }
     showPtsFlash('+' + earned, true);
     if (G.combo >= 2) showComboToast(G.combo, earned);
   } else {
@@ -336,7 +410,27 @@ function selectAnswer(idx) {
 
   document.getElementById('live-score').textContent = G.score;
   showExplanation(ok, q.explanation, q.options[q.correct]);
-  document.getElementById('btn-next').style.display = 'flex';
+
+  const btnNext = document.getElementById('btn-next');
+  btnNext.style.display = 'flex';
+
+  // Auto-avançar no modo Estudo
+  if (G.mode === 'estudo') {
+    let countdown = Math.round(CONFIG.AUTO_NEXT_DELAY / 1000);
+    const updateLabel = () => {
+      btnNext.innerHTML = 'Próxima (' + countdown + 's) <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+    };
+    updateLabel();
+    G.autoNextTick = setInterval(() => {
+      countdown--;
+      if (countdown > 0) updateLabel();
+      else clearInterval(G.autoNextTick);
+    }, 1000);
+    G.autoNextTimer = setTimeout(() => {
+      clearInterval(G.autoNextTick);
+      nextQuestion();
+    }, CONFIG.AUTO_NEXT_DELAY);
+  }
 }
 
 function autoTimeout() {
@@ -358,8 +452,8 @@ function showExplanation(ok, text, correctOption, timeout) {
   const icon  = ok ? '✓' : timeout ? '⏱' : '✗';
   const label = ok ? 'Correto!' : timeout ? 'Tempo esgotado!' : 'Incorreto!';
   const color = ok ? 'var(--green)' : 'var(--red)';
-  const parts    = text.split(/(?<=[.!?])\s+/);
-  const headline = parts[0] || text;
+  const parts    = (text || '').split(/(?<=[.!?])\s+/);
+  const headline = parts[0] || text || '';
   const detail   = parts.slice(1).join(' ');
   box.innerHTML =
     '<div class="exp-header">' +
@@ -369,6 +463,56 @@ function showExplanation(ok, text, correctOption, timeout) {
     '<p class="exp-headline">' + headline + '</p>' +
     (detail ? '<p class="exp-detail">' + detail + '</p>' : '');
   box.style.display = 'block';
+}
+
+// ── LEVEL UP TOAST ────────────────────────────
+function showLevelUp(newLv) {
+  const lvl = CONFIG.LEVELS[newLv];
+  const el = document.getElementById('levelup-toast');
+  if (!el) return;
+  el.innerHTML = lvl.icon + ' Level Up! <strong>' + lvl.name + '</strong>';
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── CONFETE ───────────────────────────────────
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  if (!canvas) return;
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const colors = ['#7c6ff7','#3de88e','#f5c542','#ff5a5a','#ffffff'];
+  const pieces = Array.from({ length: 100 }, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * -200,
+    r: Math.random() * 7 + 3,
+    d: Math.random() * 100 + 20,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    tiltAngle: Math.random() * Math.PI * 2,
+    tiltSpeed: Math.random() * 0.1 + 0.05,
+  }));
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      p.tiltAngle += p.tiltSpeed;
+      p.y += Math.cos(p.d / 30) * 1.5 + 2;
+      p.x += Math.sin(frame / 25);
+      ctx.beginPath();
+      ctx.lineWidth = p.r / 2;
+      ctx.strokeStyle = p.color;
+      ctx.moveTo(p.x + Math.sin(p.tiltAngle) * p.r, p.y);
+      ctx.lineTo(p.x, p.y + p.r);
+      ctx.stroke();
+    });
+    frame++;
+    if (frame < 160) requestAnimationFrame(draw);
+    else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display = 'none'; }
+  }
+  requestAnimationFrame(draw);
 }
 
 // ── EFEITOS VISUAIS ───────────────────────────
@@ -392,6 +536,8 @@ function showComboToast(combo, pts) {
 
 // ── PRÓXIMA QUESTÃO ───────────────────────────
 function nextQuestion() {
+  if (G.autoNextTimer) { clearTimeout(G.autoNextTimer); G.autoNextTimer = null; }
+  if (G.autoNextTick)  { clearInterval(G.autoNextTick); G.autoNextTick = null; }
   G.idx++;
   if (G.idx >= CONFIG.TOTAL_QUESTIONS) { showResults(); return; }
   const body = document.querySelector('.quiz-body');
@@ -400,14 +546,12 @@ function nextQuestion() {
   body.style.transform  = 'translateX(28px)';
   setTimeout(() => {
     renderQuestion();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        body.style.transition = 'opacity .25s ease, transform .25s ease';
-        body.style.opacity    = '1';
-        body.style.transform  = 'translateX(0)';
-        setTimeout(() => { body.style.transition = ''; }, 300);
-      });
-    });
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      body.style.transition = 'opacity .25s ease, transform .25s ease';
+      body.style.opacity    = '1';
+      body.style.transform  = 'translateX(0)';
+      setTimeout(() => { body.style.transition = ''; }, 300);
+    }));
   }, 200);
 }
 
@@ -449,6 +593,9 @@ function showResults() {
   saveStats(G.correct, CONFIG.TOTAL_QUESTIONS, G.score, G.xp);
   showScreen('result');
 
+  if (pct >= 80) setTimeout(launchConfetti, 400);
+  if (G.level > G.prevLevel) setTimeout(() => showLevelUp(G.level), 900);
+
   document.getElementById('btn-start').disabled = false;
   document.getElementById('btn-start-label').textContent = 'Gerar Quiz com IA';
   document.getElementById('start-hint').textContent = '10 perguntas • novas a cada partida';
@@ -466,7 +613,7 @@ function computeAchievements(pct) {
     { label: '🧠 Expert Difícil', earned: G.difficulty === 'dificil' && pct >= 70 },
     { label: '📚 Veterano',       earned: getTotalGames() >= 10 },
     { label: '🌟 500 XP',         earned: G.xp >= 500 },
-    { label: '🔥 ' + streak + ' dias',  earned: streak >= 3 },
+    { label: '🔥 ' + streak + ' dias', earned: streak >= 3 },
   ];
 }
 
@@ -540,10 +687,34 @@ function showProgress() {
   const badgeList = document.getElementById('progress-badges');
   if (badgeList) {
     badgeList.innerHTML = badges.map(b =>
-      '<span class="ach-badge ' + (b.earned ? 'earned' : '') + '">' +
-        b.label + (b.earned ? '' : ' 🔒') +
-      '</span>'
+      '<span class="ach-badge ' + (b.earned ? 'earned' : '') + '">' + b.label + (b.earned ? '' : ' 🔒') + '</span>'
     ).join('');
+  }
+
+  // Gráfico por tema
+  const byTema = {};
+  history.forEach(e => {
+    if (!byTema[e.tema]) byTema[e.tema] = { total: 0, correct: 0 };
+    byTema[e.tema].total   += e.total;
+    byTema[e.tema].correct += e.correct;
+  });
+  const chartEl = document.getElementById('progress-chart');
+  if (chartEl) {
+    const sorted = Object.entries(byTema)
+      .map(([tema, d]) => ({ tema, pct: Math.round((d.correct / d.total) * 100) }))
+      .sort((a, b) => b.pct - a.pct).slice(0, 6);
+    if (sorted.length) {
+      chartEl.innerHTML = sorted.map(item =>
+        '<div class="chart-row">' +
+          '<span class="chart-label">' + item.tema + '</span>' +
+          '<div class="chart-bar-wrap"><div class="chart-bar ' + (item.pct >= 70 ? 'good' : item.pct >= 40 ? 'ok' : 'bad') + '" style="width:' + item.pct + '%"></div></div>' +
+          '<span class="chart-pct">' + item.pct + '%</span>' +
+        '</div>'
+      ).join('');
+      chartEl.style.display = 'block';
+    } else {
+      chartEl.style.display = 'none';
+    }
   }
 
   const list = document.getElementById('progress-list');
@@ -563,7 +734,6 @@ function showProgress() {
         ).join('')
       : '<p class="lb-empty">Nenhuma partida ainda.</p>';
   }
-
   showScreen('progress');
 }
 
@@ -598,11 +768,8 @@ function showLeaderboard() {
 }
 function clearLeaderboard() {
   if (!confirm('Limpar todo o histórico?')) return;
-  localStorage.removeItem(CONFIG.LEADERBOARD_KEY);
-  localStorage.removeItem(CONFIG.STATS_KEY);
-  localStorage.removeItem(CONFIG.HISTORY_KEY);
-  localStorage.removeItem(CONFIG.BADGES_KEY);
-  localStorage.removeItem(CONFIG.STREAK_KEY);
+  [CONFIG.LEADERBOARD_KEY, CONFIG.STATS_KEY, CONFIG.HISTORY_KEY,
+   CONFIG.BADGES_KEY, CONFIG.STREAK_KEY, CONFIG.LAST_TOPIC_KEY].forEach(k => localStorage.removeItem(k));
   G.xp = 0; G.level = 0;
   showLeaderboard();
   loadHomeStats();
@@ -627,7 +794,7 @@ function getTotalGames() { return getStats().totalGames || 0; }
 function loadHomeStats() {
   const s      = getStats();
   const streak = getStreak();
-  if (!s.totalGames) return;
+  if (!s.totalGames) { showMotivation(); return; }
   const acc = s.totalAnswered ? Math.round((s.totalCorrect / s.totalAnswered) * 100) : 0;
   document.getElementById('hs-record').textContent = s.bestScore || 0;
   document.getElementById('hs-games').textContent  = s.totalGames || 0;
@@ -641,6 +808,8 @@ function loadHomeStats() {
     if (streakParent) streakParent.style.display = streak > 0 ? '' : 'none';
   }
   document.getElementById('home-stats').style.display = 'flex';
+  const motEl = document.getElementById('home-motivation');
+  if (motEl) motEl.style.display = 'none';
 }
 
 // ── SERVICE WORKER + OFFLINE ──────────────────

@@ -60,6 +60,8 @@
     <p class="hero-label">powered by Infocore IA</p>
     <h1 class="hero-title">Eleve seu<br/><span class="accent">Nível</span></h1>
     <p class="hero-sub">Perguntas geradas por IA no seu estilo — novas a cada partida</p>
+  <p class="home-motivation" id="home-motivation" style="display:none"></p>
+  <button class="last-topic-hint" id="last-topic-hint" style="display:none"></button>
   </div>
 
   <div class="home-stats-row" id="home-stats" style="display:none">
@@ -286,7 +288,10 @@
     <p class="section-label" style="margin-top:1.5rem">Medalhas</p>
     <div class="ach-list" id="progress-badges" style="margin-bottom:1.5rem"></div>
 
-    <p class="section-label">Histórico de partidas</p>
+    <p class="section-label" style="margin-top:1.5rem">Desempenho por Tema</p>
+    <div id="progress-chart" class="progress-chart-section"></div>
+
+    <p class="section-label" style="margin-top:1.5rem">Histórico de partidas</p>
     <div class="lb-list" id="progress-list" style="margin-top:.75rem"></div>
 
     <button class="btn-outline" style="margin-top:1.5rem" onclick="clearLeaderboard()">Limpar histórico</button>
@@ -466,6 +471,13 @@ function selectTopic(icon, label, key) {
 window.getSelectedTopic = function() { return selectedTopic; };
 </script>
 
+<!-- CONFETE -->
+<canvas id="confetti-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
+
+<!-- LEVEL UP TOAST -->
+<div id="levelup-toast" class="levelup-toast"></div>
+
 <script src="app.js"></script>
 </body>
 </html>
+
