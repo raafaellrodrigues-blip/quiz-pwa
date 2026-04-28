@@ -5,23 +5,29 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
+// 🔹 Mapeamento de dificuldade
 const DIFFICULTY_MAP = {
-  facil:   'FÁCIL — equivalente ao Ensino Médio',
-  medio:   'MÉDIO — equivalente ao ENEM/vestibular',
-  dificil: 'DIFÍCIL — equivalente a concurso público',
-  misto:   'MISTO — distribua: 3 fáceis, 4 médias, 3 difíceis',
+  facil:   'FÁCIL — Ensino Médio',
+  medio:   'MÉDIO — ENEM',
+  dificil: 'DIFÍCIL — Concurso',
+  misto:   'MISTO — (2 fáceis, 2 médias, 1 difícil)',
 };
 
+// 🔹 Prompt otimizado (LEVE e RÁPIDO)
 function buildPrompt(difficulty, topic) {
   const diffLabel = DIFFICULTY_MAP[difficulty] || DIFFICULTY_MAP.misto;
 
   const topicInstruction = (!topic || topic === 'Aleatório')
-    ? 'Escolha temas variados e interessantes.'
-    : `TODAS as 10 questões devem ser EXCLUSIVAMENTE sobre o tema: "${topic}". Não inclua perguntas de outros assuntos.`;
+    ? 'Escolha temas variados.'
+    : `Todas as questões devem ser sobre: "${topic}".`;
 
-  return `Gere exatamente 10 questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}.
+  return `Gere exatamente 5 questões de múltipla escolha estilo ENEM.
+Nível: ${diffLabel}.
 ${topicInstruction}
-Retorne APENAS o objeto JSON puro, sem markdown, sem texto extra:
+
+Seja direto e objetivo.
+
+Retorne SOMENTE JSON válido:
 {
   "questions": [
     {
@@ -29,12 +35,27 @@ Retorne APENAS o objeto JSON puro, sem markdown, sem texto extra:
       "difficulty": "Fácil",
       "question": "string",
       "options": ["A", "B", "C", "D"],
-      "correct": 0,
-      "explanation": "string"
+      "correct": 0
     }
   ]
 }`;
 }
+
+// 🔁 Retry automático
+async function generateWithRetry(fn, retries = 2) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (retries === 0) throw err;
+    await new Promise(res => setTimeout(res, 2000));
+    return generateWithRetry(fn, retries - 1);
+  }
+}
+
+// 🧠 Cache simples (melhora performance e reduz custo)
+let cache = null;
+let cacheTime = 0;
+const CACHE_TTL = 1000 * 60 * 2; // 2 minutos
 
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -46,30 +67,59 @@ module.exports = async function handler(req, res) {
   try {
     const { difficulty, topic } = req.query;
 
-    const response = await openai.chat.completions.create({
-      model: 'google/gemini-2.0-flash-001',
-      messages: [
-        {
-          role: 'user',
-          content: buildPrompt(difficulty, topic)
-        }
-      ],
-      temperature: 0.7
-    });
+    // ⚡ Usa cache se ainda válido
+    const now = Date.now();
+    if (cache && (now - cacheTime < CACHE_TTL)) {
+      return res.status(200).json(cache);
+    }
 
-    const content = response.choices[0].message.content;
+    // ⏱️ Timeout manual
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+
+    const response = await generateWithRetry(() =>
+      openai.chat.completions.create({
+        model: 'google/gemini-2.0-flash-001',
+        messages: [
+          {
+            role: 'user',
+            content: buildPrompt(difficulty, topic)
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 1200,
+        signal: controller.signal
+      })
+    );
+
+    clearTimeout(timeout);
+
+    const content = response.choices?.[0]?.message?.content || '';
+
+    // 🔧 Extração segura do JSON
     const jsonStart = content.indexOf('{');
     const jsonEnd = content.lastIndexOf('}') + 1;
-    const cleanJson = content.substring(jsonStart, jsonEnd);
 
+    if (jsonStart === -1 || jsonEnd === -1) {
+      throw new Error('Resposta inválida da IA');
+    }
+
+    const cleanJson = content.substring(jsonStart, jsonEnd);
     const parsed = JSON.parse(cleanJson);
+
+    // 🧠 salva cache
+    cache = parsed;
+    cacheTime = now;
+
     return res.status(200).json(parsed);
 
   } catch (err) {
     console.error('Erro na API:', err);
+
     return res.status(500).json({
       error: 'Erro na geração',
-      details: err.message
+      message: err.message,
+      hint: 'Tente novamente em alguns segundos'
     });
   }
 };
