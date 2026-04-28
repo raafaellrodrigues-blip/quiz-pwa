@@ -21,6 +21,10 @@
       }
     },
     {
+      "src": "*.png",
+      "use": "@vercel/static"
+    },
+    {
       "src": "public/**",
       "use": "@vercel/static"
     },
