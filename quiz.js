@@ -79,7 +79,7 @@ module.exports = async function handler(req, res) {
 
     const response = await generateWithRetry(() =>
       openai.chat.completions.create({
-        model: 'google/gemini-2.0-flash-001',
+        model: 'google/gemini-2.5-flash-lite',
         messages: [
           {
             role: 'user',
