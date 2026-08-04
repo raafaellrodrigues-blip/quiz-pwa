@@ -194,38 +194,29 @@ function selectDiff(el, diff) {
 }
 
 // ── INÍCIO ────────────────────────────────────
-async function startGame() {
-  const btn   = document.getElementById('btn-start');
-  const label = document.getElementById('btn-start-label');
-  const hint  = document.getElementById('start-hint');
+// Função para resetar e iniciar uma nova partida
+function startGame() {
+  // 1. Oculta telas ativas (especialmente a tela de resultados)
+  document.querySelectorAll('.screen').forEach(screen => {
+    screen.classList.remove('active');
+  });
 
-  btn.disabled = true;
-  showSkeletonLoading(label, hint);
+  // 2. Garante que modais ou overlays fiquem fechados
+  const loadingOverlay = document.getElementById('ai-loading-overlay');
+  if (loadingOverlay) loadingOverlay.style.display = 'none';
 
-  try {
-    const topicObj = window.getSelectedTopic ? window.getSelectedTopic() : { icon:'🎲', label:'Aleatório', key:'Aleatório' };
-    const tema = topicObj.label;
+  // 3. Reseta o estado do Quiz
+  currentQuestionIndex = 0;
+  score = 0;
+  combo = 0;
+  questions = []; // Limpa o array de perguntas anteriores
 
-    try { localStorage.setItem(CONFIG.LAST_TOPIC_KEY, JSON.stringify(topicObj)); } catch(e) {}
+  // 4. Exibe a tela do Quiz ou a Home
+  document.getElementById('screen-home').classList.add('active');
 
-    const qs = await fetchQuestions(G.difficulty, tema);
-    Object.assign(G, {
-      questions: qs, idx: 0, score: 0, combo: 0,
-      maxCombo: 0, correct: 0, answered: false,
-      prevLevel: G.level,
-    });
-    hideSkeletonLoading(label, hint);
-    showScreen('quiz');
-    renderQuestion();
-  } catch (err) {
-    console.error(err);
-    hideSkeletonLoading(label, hint);
-    hint.textContent  = '❌ Erro no carregamento. Tente novamente.';
-    label.textContent = 'Tentar novamente';
-    btn.disabled = false;
-  }
+  // Caso seu fluxo vá direto para a busca de perguntas:
+  // fetchQuestions(); 
 }
-
 // ── SKELETON / LOADING DA IA ──────────────────
 let skeletonInterval = null;
 const skeletonMsgs = [
