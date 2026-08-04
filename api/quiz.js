@@ -47,16 +47,16 @@ module.exports = async function handler(req, res) {
     const { difficulty, topic } = req.query;
 
     const response = await openai.chat.completions.create({
-      model:'meta-llama/llama-3.1-8b-instruct:free',
+      model: 'openrouter/free', // Roteia automaticamente para um modelo gratuito ativo
+      response_format: { type: "json_object" }, // Força o retorno em formato JSON
       messages: [
         {
           role: 'user',
           content: buildPrompt(difficulty, topic)
         }
       ],
-      temperature: 0,
-      max_tokens: 3000
-    
+      temperature: 0.7,
+      max_tokens: 4000 // Aumentado para garantir espaço suficiente para as 20 questões
     });
 
     const content = response.choices[0].message.content;
