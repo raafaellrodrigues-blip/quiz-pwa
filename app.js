@@ -1,8 +1,5 @@
 /* =============================================
-   QUIZ IA — app.js  v4.0
-   Melhorias: confete, auto-next, level-up toast,
-   prefetch silencioso, motivação na home,
-   sugestão de último tema, gráfico por tema
+   QUIZ IA — app.js  v4.1 (Otimizado Parallel Fetch)
    ============================================= */
 
 const CONFIG = {
@@ -10,7 +7,7 @@ const CONFIG = {
   TIMER_SECONDS: 30,
   CHALLENGE_SECONDS: 15,
   AUTO_NEXT_DELAY: 2500,
-  CACHE_KEY: 'quizia_cache_v3',
+  CACHE_KEY: 'quizia_cache_v4',
   CACHE_TTL_MS: 1000 * 60 * 60 * 6,
   LEADERBOARD_KEY: 'quizia_leaderboard_v2',
   STATS_KEY: 'quizia_stats_v2',
@@ -34,7 +31,7 @@ const CONFIG = {
   ],
   CATEGORY_BADGES: [
     { id: 'medico',     label: '🩺 Clínico Geral',   topics: ['Medicina','Enfermagem','Fisioterapia'], threshold: 7 },
-    { id: 'tecno',      label: '💻 Dev Master',       topics: ['Programação','TI','Redes'],            threshold: 7 },
+    { id: 'tecno',      label: '💻 Dev Master',      topics: ['Programação','TI','Redes'],             threshold: 7 },
     { id: 'juridico',   label: '⚖️ Defensor',         topics: ['Direito','Concursos'],                 threshold: 7 },
     { id: 'cientista',  label: '🔬 Cientista',        topics: ['Física','Química','Biologia'],         threshold: 7 },
     { id: 'humanista',  label: '🌎 Humanista',        topics: ['História','Geografia','Filosofia'],    threshold: 7 },
@@ -74,6 +71,17 @@ let G = {
   prevLevel: 0,
 };
 
+// ── AUXILIARES ────────────────────────────────
+function shuffle(array) {
+  let cur = array.length, rand;
+  while (cur !== 0) {
+    rand = Math.floor(Math.random() * cur);
+    cur--;
+    [array[cur], array[rand]] = [array[rand], array[cur]];
+  }
+  return array;
+}
+
 // ── BOOT ──────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   registerSW();
@@ -105,11 +113,11 @@ function animateLoading(msgs, cb) {
   const bar = document.getElementById('loading-bar');
   const msg = document.getElementById('loading-msg');
   let step = 0;
-  msg.textContent = msgs[0];
+  if (msg) msg.textContent = msgs[0];
   const iv = setInterval(() => {
     step++;
-    bar.style.width = Math.round((step / msgs.length) * 100) + '%';
-    if (step < msgs.length) msg.textContent = msgs[step];
+    if (bar) bar.style.width = Math.round((step / msgs.length) * 100) + '%';
+    if (step < msgs.length && msg) msg.textContent = msgs[step];
     if (step >= msgs.length) { clearInterval(iv); setTimeout(cb, 350); }
   }, 480);
 }
@@ -144,10 +152,9 @@ function prefetchQuestions() {
   const key = CONFIG.CACHE_KEY + '_misto_Aleatório';
   if (getCached(key)) return;
   setTimeout(() => {
-    fetch(CONFIG.API_ENDPOINT + '?difficulty=misto&topic=Aleat%C3%B3rio')
-      .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data && data.questions) setCache(key, data.questions); })
-      .catch(() => {});
+    fetchQuestions('misto', 'Aleatório').then(qs => {
+      if (qs && qs.length) setCache(key, qs);
+    }).catch(() => {});
   }, 2500);
 }
 
@@ -213,7 +220,7 @@ async function startGame() {
   } catch (err) {
     console.error(err);
     hideSkeletonLoading(label, hint);
-    hint.textContent  = '❌ Erro. Verifique a API key no Vercel.';
+    hint.textContent  = '❌ Erro no carregamento. Tente novamente.';
     label.textContent = 'Tentar novamente';
     btn.disabled = false;
   }
@@ -222,11 +229,10 @@ async function startGame() {
 // ── SKELETON / LOADING DA IA ──────────────────
 let skeletonInterval = null;
 const skeletonMsgs = [
-  'A IA está pensando... 🧠',
-  'Gerando questões únicas... ✨',
-  'Verificando dificuldade... 📊',
-  'Quase pronto... 🚀',
-  'Finalizando perguntas... 📝',
+  'Conectando com a IA... 🧠',
+  'Gerando questões rápidas... ✨',
+  'Processando em paralelo... ⚡',
+  'Quase pronto... 🚀'
 ];
 
 function showSkeletonLoading(label, hint) {
@@ -234,16 +240,16 @@ function showSkeletonLoading(label, hint) {
   if (overlay) overlay.style.display = 'flex';
   let msgIdx = 0;
   label.textContent = skeletonMsgs[0];
-  hint.textContent  = 'Isso pode levar alguns segundos...';
+  hint.textContent  = 'Gerando de forma otimizada...';
   skeletonInterval = setInterval(() => {
     msgIdx = (msgIdx + 1) % skeletonMsgs.length;
     label.textContent = skeletonMsgs[msgIdx];
     const bar = document.getElementById('ai-loading-bar');
     if (bar) {
       const cur = parseFloat(bar.style.width) || 0;
-      bar.style.width = Math.min(90, cur + Math.random() * 14) + '%';
+      bar.style.width = Math.min(90, cur + Math.random() * 20) + '%';
     }
-  }, 1200);
+  }, 800);
 }
 
 function hideSkeletonLoading(label, hint) {
@@ -252,24 +258,38 @@ function hideSkeletonLoading(label, hint) {
   if (overlay) {
     const bar = document.getElementById('ai-loading-bar');
     if (bar) bar.style.width = '100%';
-    setTimeout(() => { overlay.style.display = 'none'; if(bar) bar.style.width = '0%'; }, 400);
+    setTimeout(() => { overlay.style.display = 'none'; if(bar) bar.style.width = '0%'; }, 300);
   }
   label.textContent = 'Gerar Quiz com IA';
   hint.textContent  = '10 perguntas • novas a cada partida';
 }
 
-// ── CACHE / FETCH ─────────────────────────────
+// ── CACHE / FETCH PARALELO ───────────────────
 async function fetchQuestions(diff, tema) {
   tema = tema || 'Aleatório';
-  const key    = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
+  const key = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
   const cached = getCached(key);
-  if (cached) { console.log('Cache hit:', diff, tema); return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); }
+  if (cached && cached.length >= CONFIG.TOTAL_QUESTIONS) { 
+    console.log('Cache hit:', diff, tema); 
+    return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); 
+  }
 
-  const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema));
-  if (!res.ok) throw new Error('API ' + res.status);
-  const data = await res.json();
-  setCache(key, data.questions);
-  return shuffle(data.questions).slice(0, CONFIG.TOTAL_QUESTIONS);
+  // Faz duas requisições simultâneas de 5 questões cada
+  const fetchBatch = async () => {
+    const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=5');
+    if (!res.ok) throw new Error('API Error: ' + res.status);
+    const data = await res.json();
+    return data.questions || [];
+  };
+
+  const results = await Promise.all([fetchBatch(), fetchBatch()]);
+  const combined = [...results[0], ...results[1]];
+
+  if (combined.length > 0) {
+    setCache(key, combined);
+  }
+
+  return shuffle(combined).slice(0, CONFIG.TOTAL_QUESTIONS);
 }
 
 function getCached(key) {
@@ -284,7 +304,7 @@ function getCached(key) {
 
 function setCache(key, data) {
   try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); }
-  catch(e) { console.warn('cache cheio', e); }
+  catch(e) { console.warn('Cache cheio', e); }
 }
 
 // ── RENDER QUESTÃO ────────────────────────────
@@ -303,10 +323,10 @@ function renderQuestion() {
   document.getElementById('live-score').textContent  = G.score;
   renderXPBar();
 
-  document.getElementById('q-cat').textContent = q.category;
+  document.getElementById('q-cat').textContent = q.category || 'Geral';
   const diffEl = document.getElementById('q-diff');
-  diffEl.textContent = q.difficulty;
-  diffEl.className   = 'q-diff ' + ({ 'Fácil': 'easy', 'Médio': 'medium', 'Difícil': 'hard' }[q.difficulty] || '');
+  diffEl.textContent = q.difficulty || 'Médio';
+  diffEl.className   = 'q-diff ' + ({ 'Fácil': 'easy', 'Médio': 'medium', 'Difícil': 'hard' }[q.difficulty] || 'medium');
 
   document.getElementById('q-text').textContent = q.question;
   document.getElementById('explanation-box').style.display = 'none';
@@ -328,7 +348,7 @@ function renderQuestion() {
   ['A','B','C','D'].forEach((letter, i) => {
     const btn = document.createElement('button');
     btn.className = 'option-btn';
-    btn.innerHTML = '<span class="opt-letter">' + letter + '</span><span class="opt-text">' + q.options[i] + '</span>';
+    btn.innerHTML = '<span class="opt-letter">' + letter + '</span><span class="opt-text">' + (q.options[i] || '') + '</span>';
     btn.addEventListener('click', () => selectAnswer(i));
     list.appendChild(btn);
   });
@@ -364,9 +384,12 @@ function renderXPBar() {
 function updateRing(cur, total) {
   const circ = 94.25;
   const ring = document.getElementById('ring-fill');
-  ring.style.strokeDasharray = Math.max(0, Math.round(circ * cur / total)) + ' ' + circ;
-  document.getElementById('timer-num').textContent = cur;
-  ring.classList.toggle('warn', cur <= 5);
+  if (ring) {
+    ring.style.strokeDasharray = Math.max(0, Math.round(circ * cur / total)) + ' ' + circ;
+    ring.classList.toggle('warn', cur <= 5);
+  }
+  const timerNum = document.getElementById('timer-num');
+  if (timerNum) timerNum.textContent = cur;
 }
 
 // ── RESPOSTA ──────────────────────────────────
@@ -383,8 +406,8 @@ function selectAnswer(idx) {
   const diffPts = { 'Fácil': CONFIG.POINTS.easy, 'Médio': CONFIG.POINTS.medium, 'Difícil': CONFIG.POINTS.hard };
   const base    = diffPts[q.difficulty] || CONFIG.POINTS.medium;
 
-  btns[q.correct].classList.add('correct');
-  if (!ok) btns[idx].classList.add('wrong');
+  if (btns[q.correct]) btns[q.correct].classList.add('correct');
+  if (!ok && btns[idx]) btns[idx].classList.add('wrong');
 
   if (ok) {
     G.combo++;
@@ -414,7 +437,6 @@ function selectAnswer(idx) {
   const btnNext = document.getElementById('btn-next');
   btnNext.style.display = 'flex';
 
-  // Auto-avançar no modo Estudo
   if (G.mode === 'estudo') {
     let countdown = Math.round(CONFIG.AUTO_NEXT_DELAY / 1000);
     const updateLabel = () => {
@@ -485,7 +507,7 @@ function launchConfetti() {
   canvas.width  = window.innerWidth;
   canvas.height = window.innerHeight;
   const colors = ['#7c6ff7','#3de88e','#f5c542','#ff5a5a','#ffffff'];
-  const pieces = Array.from({ length: 100 }, () => ({
+  const pieces = Array.from({ length: 80 }, () => ({
     x: Math.random() * canvas.width,
     y: Math.random() * -200,
     r: Math.random() * 7 + 3,
@@ -509,7 +531,7 @@ function launchConfetti() {
       ctx.stroke();
     });
     frame++;
-    if (frame < 160) requestAnimationFrame(draw);
+    if (frame < 140) requestAnimationFrame(draw);
     else { ctx.clearRect(0,0,canvas.width,canvas.height); canvas.style.display = 'none'; }
   }
   requestAnimationFrame(draw);
@@ -528,6 +550,7 @@ function showComboToast(combo, pts) {
   const labels = ['','','🔥 Combo!','⚡ Em Chama!','💥 Imparável!','🌟 Lendário!'];
   const msg    = combo < labels.length ? labels[combo] : '🌟 x' + combo;
   const el     = document.getElementById('combo-toast');
+  if (!el) return;
   el.textContent = msg + '  ×' + combo + '  +' + pts + ' pts';
   el.className   = 'combo-toast show';
   clearTimeout(el._t);
@@ -541,18 +564,22 @@ function nextQuestion() {
   G.idx++;
   if (G.idx >= CONFIG.TOTAL_QUESTIONS) { showResults(); return; }
   const body = document.querySelector('.quiz-body');
-  body.style.transition = 'opacity .18s ease, transform .18s ease';
-  body.style.opacity    = '0';
-  body.style.transform  = 'translateX(28px)';
-  setTimeout(() => {
+  if (body) {
+    body.style.transition = 'opacity .18s ease, transform .18s ease';
+    body.style.opacity    = '0';
+    body.style.transform  = 'translateX(28px)';
+    setTimeout(() => {
+      renderQuestion();
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        body.style.transition = 'opacity .25s ease, transform .25s ease';
+        body.style.opacity    = '1';
+        body.style.transform  = 'translateX(0)';
+        setTimeout(() => { body.style.transition = ''; }, 300);
+      }));
+    }, 200);
+  } else {
     renderQuestion();
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      body.style.transition = 'opacity .25s ease, transform .25s ease';
-      body.style.opacity    = '1';
-      body.style.transform  = 'translateX(0)';
-      setTimeout(() => { body.style.transition = ''; }, 300);
-    }));
-  }, 200);
+  }
 }
 
 // ── RESULTADOS ────────────────────────────────
@@ -691,7 +718,6 @@ function showProgress() {
     ).join('');
   }
 
-  // Gráfico por tema
   const byTema = {};
   history.forEach(e => {
     if (!byTema[e.tema]) byTema[e.tema] = { total: 0, correct: 0 };
@@ -752,27 +778,21 @@ function showLeaderboard() {
   const lb     = getLeaderboard();
   const list   = document.getElementById('lb-list');
   const medals = ['gold','silver','bronze'];
-  list.innerHTML = lb.length
-    ? lb.map((e, i) =>
-        '<div class="lb-row">' +
-          '<span class="lb-rank ' + (medals[i]||'') + '">' + (i+1) + '°</span>' +
-          '<div style="flex:1">' +
-            '<div class="lb-name">' + e.date + ' — ' + (e.mode==='rapido' ? '⚡ Rápido' : e.mode==='desafio' ? '💀 Desafio' : '📖 Estudo') + '</div>' +
-            '<div class="lb-mode">' + e.acc + '% de precisão</div>' +
-          '</div>' +
-          '<span class="lb-score">' + e.score + ' pts</span>' +
-        '</div>'
-      ).join('')
-    : '<p class="lb-empty">Nenhuma partida ainda.<br/>Jogue para aparecer no ranking!</p>';
+  if (list) {
+    list.innerHTML = lb.length
+      ? lb.map((e, i) =>
+          '<div class="lb-row">' +
+            '<span class="lb-rank ' + (medals[i]||'') + '">' + (i+1) + '°</span>' +
+            '<div style="flex:1">' +
+              '<div class="lb-name">' + e.date + ' — ' + (e.mode==='rapido' ? '⚡ Rápido' : e.mode==='desafio' ? '💀 Desafio' : '📖 Estudo') + '</div>' +
+              '<div class="lb-mode">' + e.acc + '% de precisão</div>' +
+            '</div>' +
+            '<span class="lb-score">' + e.score + ' pts</span>' +
+          '</div>'
+        ).join('')
+      : '<p class="lb-empty">Nenhuma partida ainda.<br/>Jogue para aparecer no ranking!</p>';
+  }
   showScreen('leaderboard');
-}
-function clearLeaderboard() {
-  if (!confirm('Limpar todo o histórico?')) return;
-  [CONFIG.LEADERBOARD_KEY, CONFIG.STATS_KEY, CONFIG.HISTORY_KEY,
-   CONFIG.BADGES_KEY, CONFIG.STREAK_KEY, CONFIG.LAST_TOPIC_KEY].forEach(k => localStorage.removeItem(k));
-  G.xp = 0; G.level = 0;
-  showLeaderboard();
-  loadHomeStats();
 }
 
 // ── STATS ─────────────────────────────────────
@@ -796,18 +816,28 @@ function loadHomeStats() {
   const streak = getStreak();
   if (!s.totalGames) { showMotivation(); return; }
   const acc = s.totalAnswered ? Math.round((s.totalCorrect / s.totalAnswered) * 100) : 0;
-  document.getElementById('hs-record').textContent = s.bestScore || 0;
-  document.getElementById('hs-games').textContent  = s.totalGames || 0;
-  document.getElementById('hs-acc').textContent    = acc + '%';
+  
+  const recEl = document.getElementById('hs-record');
+  if (recEl) recEl.textContent = s.bestScore || 0;
+  
+  const gamesEl = document.getElementById('hs-games');
+  if (gamesEl) gamesEl.textContent = s.totalGames || 0;
+  
+  const accEl = document.getElementById('hs-acc');
+  if (accEl) accEl.textContent = acc + '%';
+  
   const lbl = document.getElementById('hs-level');
   if (lbl) lbl.textContent = CONFIG.LEVELS[G.level].icon + ' ' + CONFIG.LEVELS[G.level].name;
+  
   const streakEl = document.getElementById('hs-streak');
   if (streakEl) {
     streakEl.textContent = streak + (streak >= 3 ? '🔥' : '');
     const streakParent = streakEl.closest('.hstat');
     if (streakParent) streakParent.style.display = streak > 0 ? '' : 'none';
   }
-  document.getElementById('home-stats').style.display = 'flex';
+  const homeStats = document.getElementById('home-stats');
+  if (homeStats) homeStats.style.display = 'flex';
+  
   const motEl = document.getElementById('home-motivation');
   if (motEl) motEl.style.display = 'none';
 }
@@ -820,20 +850,6 @@ function registerSW() {
       .catch(e => console.warn('SW erro:', e));
 }
 function monitorOffline() {
-  window.addEventListener('offline', () => {
-    const b = document.createElement('div');
-    b.className = 'offline-badge';
-    b.textContent = '📡 Sem conexão — usando cache';
-    document.body.appendChild(b);
-    setTimeout(() => b.remove(), 4000);
-  });
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length-1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i+1));
-    [a[i],a[j]] = [a[j],a[i]];
-  }
-  return a;
+  window.addEventListener('offline', () => console.log('Offline'));
+  window.addEventListener('online', () => console.log('Online'));
 }
