@@ -47,14 +47,16 @@ module.exports = async function handler(req, res) {
     const { difficulty, topic } = req.query;
 
     const response = await openai.chat.completions.create({
-      model:'deepseek/deepseek-v4-flash:free',
+      model:'openrouter/free',
       messages: [
         {
           role: 'user',
           content: buildPrompt(difficulty, topic)
         }
       ],
-      temperature: 0.7
+      temperature: 0.7,
+      max_tokens: 1200
+    
     });
 
     const content = response.choices[0].message.content;
