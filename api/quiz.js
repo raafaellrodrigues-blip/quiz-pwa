@@ -47,15 +47,15 @@ module.exports = async function handler(req, res) {
     const { difficulty, topic } = req.query;
 
     const response = await openai.chat.completions.create({
-      model:'openrouter/free',
+      model:'meta-llama/llama-3.1-8b-instruct:free',
       messages: [
         {
           role: 'user',
           content: buildPrompt(difficulty, topic)
         }
       ],
-      temperature: 0.2,
-      max_tokens: 1800
+      temperature: 0,
+      max_tokens: 3000
     
     });
 
