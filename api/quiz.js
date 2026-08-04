@@ -9,19 +9,20 @@ const DIFFICULTY_MAP = {
   facil:   'FÁCIL — equivalente ao Ensino Médio',
   medio:   'MÉDIO — equivalente ao ENEM/vestibular',
   dificil: 'DIFÍCIL — equivalente a concurso público',
-  misto:   'MISTO — distribua: 3 fáceis, 4 médias, 3 difíceis',
+  misto:   'MISTO — distribua questões de fácil a difícil',
 };
 
-function buildPrompt(difficulty, topic) {
+function buildPrompt(difficulty, topic, count) {
   const diffLabel = DIFFICULTY_MAP[difficulty] || DIFFICULTY_MAP.misto;
+  const numQuestions = parseInt(count, 10) || 5;
 
   const topicInstruction = (!topic || topic === 'Aleatório')
     ? 'Escolha temas variados e interessantes.'
-    : `TODAS as 20 questões devem ser EXCLUSIVAMENTE sobre o tema: "${topic}". Não inclua perguntas de outros assuntos.`;
+    : `TODAS as ${numQuestions} questões devem ser EXCLUSIVAMENTE sobre o tema: "${topic}".`;
 
-  return `Gere exatamente 20 questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}.
+  return `Gere exatamente ${numQuestions} questões de múltipla escolha no estilo ENEM. Nível: ${diffLabel}.
 ${topicInstruction}
-Retorne APENAS o objeto JSON puro, sem markdown, sem texto extra:
+Retorne APENAS um objeto JSON válido, sem formatação markdown e sem texto antes ou depois:
 {
   "questions": [
     {
@@ -44,33 +45,38 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
-    const { difficulty, topic } = req.query;
+    const { difficulty, topic, count = 5 } = req.query;
 
     const response = await openai.chat.completions.create({
-      model: 'openrouter/free', // Roteia automaticamente para um modelo gratuito ativo
-      response_format: { type: "json_object" }, // Força o retorno em formato JSON
+      model: 'qwen/qwen-2.5-72b-instruct:free',
+      response_format: { type: "json_object" },
       messages: [
         {
           role: 'user',
-          content: buildPrompt(difficulty, topic)
+          content: buildPrompt(difficulty, topic, count)
         }
       ],
       temperature: 0.7,
-      max_tokens: 4000 // Aumentado para garantir espaço suficiente para as 20 questões
+      max_tokens: 2500
     });
 
     const content = response.choices[0].message.content;
     const jsonStart = content.indexOf('{');
     const jsonEnd = content.lastIndexOf('}') + 1;
-    const cleanJson = content.substring(jsonStart, jsonEnd);
 
+    if (jsonStart === -1 || jsonEnd === 0) {
+      throw new Error('A resposta da IA não contém um objeto JSON válido.');
+    }
+
+    const cleanJson = content.substring(jsonStart, jsonEnd);
     const parsed = JSON.parse(cleanJson);
+
     return res.status(200).json(parsed);
 
   } catch (err) {
     console.error('Erro na API:', err);
     return res.status(500).json({
-      error: 'Erro na geração',
+      error: 'Erro na geração de perguntas',
       details: err.message
     });
   }
