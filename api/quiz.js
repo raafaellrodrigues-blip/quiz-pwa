@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
     const { difficulty, topic, count = 5 } = req.query;
 
     const response = await openai.chat.completions.create({
-      model: 'meta-llama/llama-3.1-8b-instruct:free',
+      model: 'openrouter/free',
       response_format: { type: "json_object" },
       messages: [
         {
