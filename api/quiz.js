@@ -48,7 +48,7 @@ module.exports = async function handler(req, res) {
     const { difficulty, topic, count = 5 } = req.query;
 
     const response = await openai.chat.completions.create({
-      model: 'qwen/qwen-2.5-72b-instruct:free',
+      model: 'google/gemma-2-9b-it:free',
       response_format: { type: "json_object" },
       messages: [
         {
