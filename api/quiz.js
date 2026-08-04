@@ -47,7 +47,7 @@ module.exports = async function handler(req, res) {
     const { difficulty, topic } = req.query;
 
     const response = await openai.chat.completions.create({
-      model: 'google/gemini-2.0-flash-001',
+      model:'deepseek/deepseek-v4-flash:free'
       messages: [
         {
           role: 'user',
