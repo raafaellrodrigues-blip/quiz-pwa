@@ -1,5 +1,5 @@
 /* =============================================
-   QUIZ IA — app.js  v4.1 (Otimizado Parallel Fetch)
+   QUIZ IA — app.js v4.2 (Fluxo Completo e Temas)
    ============================================= */
 
 const CONFIG = {
@@ -69,9 +69,9 @@ let G = {
   xp: 0,
   level: 0,
   prevLevel: 0,
+  selectedTopic: { label: 'Aleatório', key: 'aleatorio', icon: '🎯' }
 };
 
-// ── AUXILIARES ────────────────────────────────
 function shuffle(array) {
   let cur = array.length, rand;
   while (cur !== 0) {
@@ -82,7 +82,6 @@ function shuffle(array) {
   return array;
 }
 
-// ── BOOT ──────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   registerSW();
   monitorOffline();
@@ -123,7 +122,22 @@ function animateLoading(msgs, cb) {
   }, 480);
 }
 
-// ── MOTIVAÇÃO ─────────────────────────────────
+function selectTopic(icon, label, key) {
+  G.selectedTopic = { icon, label, key };
+  document.querySelectorAll('.topic-card').forEach(c => c.classList.remove('selected'));
+  const activeCard = document.querySelector(`[data-topic="${key}"]`);
+  if (activeCard) activeCard.classList.add('selected');
+  
+  const hint = document.getElementById('selected-topic-label');
+  if (hint) hint.textContent = `${icon} ${label}`;
+
+  try {
+    localStorage.setItem(CONFIG.LAST_TOPIC_KEY, JSON.stringify(G.selectedTopic));
+  } catch(e) {}
+}
+window.selectTopic = selectTopic;
+window.getSelectedTopic = () => G.selectedTopic;
+
 function showMotivation() {
   const el = document.getElementById('home-motivation');
   if (!el) return;
@@ -132,7 +146,6 @@ function showMotivation() {
   el.style.display = 'block';
 }
 
-// ── ÚLTIMO TEMA ───────────────────────────────
 function showLastTopicSuggestion() {
   try {
     const last = JSON.parse(localStorage.getItem(CONFIG.LAST_TOPIC_KEY));
@@ -142,13 +155,12 @@ function showLastTopicSuggestion() {
     el.innerHTML = 'Continuar em <strong>' + last.icon + ' ' + last.label + '</strong>?';
     el.style.display = 'flex';
     el.onclick = () => {
-      if (window.selectTopic) window.selectTopic(last.icon, last.label, last.key);
+      selectTopic(last.icon, last.label, last.key);
       el.style.display = 'none';
     };
   } catch(e) {}
 }
 
-// ── PREFETCH ──────────────────────────────────
 function prefetchQuestions() {
   const key = CONFIG.CACHE_KEY + '_misto_Aleatório';
   if (getCached(key)) return;
@@ -159,7 +171,6 @@ function prefetchQuestions() {
   }, 2500);
 }
 
-// ── NAVEGAÇÃO ─────────────────────────────────
 function showScreen(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById('screen-' + name);
@@ -194,7 +205,6 @@ function selectDiff(el, diff) {
   G.difficulty = diff;
 }
 
-// ── INÍCIO ────────────────────────────────────
 async function startGame() {
   const btnStart = document.getElementById('btn-start');
   const btnLabel = document.getElementById('btn-start-label');
@@ -204,7 +214,7 @@ async function startGame() {
 
   showSkeletonLoading(btnLabel || { textContent: '' }, startHint || { textContent: '' });
 
-  const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
+  const tema = G.selectedTopic ? G.selectedTopic.label : 'Aleatório';
 
   try {
     const qs = await fetchQuestions(G.difficulty, tema);
@@ -216,7 +226,6 @@ async function startGame() {
       return;
     }
 
-    // Reinicia dados da partida
     G.questions = qs;
     G.idx = 0;
     G.score = 0;
@@ -231,12 +240,18 @@ async function startGame() {
   } catch (err) {
     console.error('Erro ao iniciar jogo:', err);
     hideSkeletonLoading(btnLabel || { textContent: '' }, startHint || { textContent: '' });
-    alert('Erro de conexão com o servidor. Verifique sua API.');
+    alert('Erro ao carregar o quiz. Tente novamente.');
     if (btnStart) btnStart.disabled = false;
   }
 }
 
-// ── SKELETON / LOADING DA IA ──────────────────
+function restartWithSameTopic() {
+  const tema = G.selectedTopic ? G.selectedTopic.label : 'Aleatório';
+  const key = CONFIG.CACHE_KEY + '_' + G.difficulty + '_' + tema;
+  localStorage.removeItem(key);
+  startGame();
+}
+
 let skeletonInterval = null;
 const skeletonMsgs = [
   'Conectando com a IA... 🧠',
@@ -249,11 +264,11 @@ function showSkeletonLoading(label, hint) {
   const overlay = document.getElementById('ai-loading-overlay');
   if (overlay) overlay.style.display = 'flex';
   let msgIdx = 0;
-  label.textContent = skeletonMsgs[0];
-  hint.textContent  = 'Gerando de forma otimizada...';
+  if (label) label.textContent = skeletonMsgs[0];
+  if (hint) hint.textContent  = 'Gerando de forma otimizada...';
   skeletonInterval = setInterval(() => {
     msgIdx = (msgIdx + 1) % skeletonMsgs.length;
-    label.textContent = skeletonMsgs[msgIdx];
+    if (label) label.textContent = skeletonMsgs[msgIdx];
     const bar = document.getElementById('ai-loading-bar');
     if (bar) {
       const cur = parseFloat(bar.style.width) || 0;
@@ -270,21 +285,18 @@ function hideSkeletonLoading(label, hint) {
     if (bar) bar.style.width = '100%';
     setTimeout(() => { overlay.style.display = 'none'; if(bar) bar.style.width = '0%'; }, 300);
   }
-  label.textContent = 'Gerar Quiz com IA';
-  hint.textContent  = '10 perguntas • novas a cada partida';
+  if (label) label.textContent = 'Gerar Quiz com IA';
+  if (hint) hint.textContent  = '10 perguntas • novas a cada partida';
 }
 
-// ── CACHE / FETCH PARALELO ───────────────────
 async function fetchQuestions(diff, tema) {
   tema = tema || 'Aleatório';
   const key = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
   const cached = getCached(key);
   if (cached && cached.length >= CONFIG.TOTAL_QUESTIONS) { 
-    console.log('Cache hit:', diff, tema); 
     return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); 
   }
 
-  // Requisição para buscar perguntas da API
   const fetchBatch = async () => {
     const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=5');
     if (!res.ok) throw new Error('API Error: ' + res.status);
@@ -317,7 +329,6 @@ function setCache(key, data) {
   catch(e) { console.warn('Cache cheio', e); }
 }
 
-// ── RENDER QUESTÃO ────────────────────────────
 function renderQuestion() {
   const q = G.questions[G.idx];
   if (!q) { showResults(); return; }
@@ -402,7 +413,6 @@ function updateRing(cur, total) {
   if (timerNum) timerNum.textContent = cur;
 }
 
-// ── RESPOSTA ──────────────────────────────────
 function selectAnswer(idx) {
   if (G.answered) return;
   G.answered = true;
@@ -497,7 +507,6 @@ function showExplanation(ok, text, correctOption, timeout) {
   box.style.display = 'block';
 }
 
-// ── LEVEL UP TOAST ────────────────────────────
 function showLevelUp(newLv) {
   const lvl = CONFIG.LEVELS[newLv];
   const el = document.getElementById('levelup-toast');
@@ -508,7 +517,6 @@ function showLevelUp(newLv) {
   el._t = setTimeout(() => el.classList.remove('show'), 3000);
 }
 
-// ── CONFETE ───────────────────────────────────
 function launchConfetti() {
   const canvas = document.getElementById('confetti-canvas');
   if (!canvas) return;
@@ -547,7 +555,6 @@ function launchConfetti() {
   requestAnimationFrame(draw);
 }
 
-// ── EFEITOS VISUAIS ───────────────────────────
 function showPtsFlash(text, ok) {
   const el = document.getElementById('pts-flash');
   if (!el) return;
@@ -567,7 +574,6 @@ function showComboToast(combo, pts) {
   el._t = setTimeout(() => { el.className = 'combo-toast'; }, 2200);
 }
 
-// ── PRÓXIMA QUESTÃO ───────────────────────────
 function nextQuestion() {
   if (G.autoNextTimer) { clearTimeout(G.autoNextTimer); G.autoNextTimer = null; }
   if (G.autoNextTick)  { clearInterval(G.autoNextTick); G.autoNextTick = null; }
@@ -592,7 +598,6 @@ function nextQuestion() {
   }
 }
 
-// ── RESULTADOS ────────────────────────────────
 function showResults() {
   const pct = Math.round((G.correct / CONFIG.TOTAL_QUESTIONS) * 100);
   G.xp   += CONFIG.XP_PER_GAME;
@@ -615,7 +620,7 @@ function showResults() {
   const rlv = document.getElementById('r-level');
   if (rlv) rlv.textContent = CONFIG.LEVELS[G.level].icon + ' ' + CONFIG.LEVELS[G.level].name;
 
-  const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
+  const tema = G.selectedTopic ? G.selectedTopic.label : 'Aleatório';
   saveHistory({ date: new Date().toLocaleDateString('pt-BR'), tema, mode: G.mode, correct: G.correct, total: CONFIG.TOTAL_QUESTIONS, score: G.score, pct });
 
   const newBadges    = checkCategoryBadges(tema, G.correct, pct);
@@ -635,10 +640,8 @@ function showResults() {
 
   const btnStart = document.getElementById('btn-start');
   if (btnStart) btnStart.disabled = false;
-
   const btnLabel = document.getElementById('btn-start-label');
   if (btnLabel) btnLabel.textContent = 'Gerar Quiz com IA';
-
   const startHint = document.getElementById('start-hint');
   if (startHint) startHint.textContent = '10 perguntas • novas a cada partida';
 }
@@ -659,14 +662,12 @@ function computeAchievements(pct) {
   ];
 }
 
-// ── XP / NÍVEL ────────────────────────────────
 function computeLevel(xp) {
   let lv = 0;
   CONFIG.LEVELS.forEach((l, i) => { if (xp >= l.min) lv = i; });
   return lv;
 }
 
-// ── STREAKS ───────────────────────────────────
 function updateStreak() {
   try {
     const s = JSON.parse(localStorage.getItem(CONFIG.STREAK_KEY)) || { streak: 0, lastDate: null };
@@ -684,7 +685,6 @@ function getStreak() {
   catch { return 0; }
 }
 
-// ── MEDALHAS POR CATEGORIA ────────────────────
 function checkCategoryBadges(tema, correct, pct) {
   const earned = JSON.parse(localStorage.getItem(CONFIG.BADGES_KEY) || '[]');
   const newOnes = [];
@@ -704,7 +704,6 @@ function getAllBadges() {
   return CONFIG.CATEGORY_BADGES.map(b => ({ ...b, earned: earned.includes(b.id) }));
 }
 
-// ── HISTÓRICO LOCAL ───────────────────────────
 function saveHistory(entry) {
   try {
     const h = JSON.parse(localStorage.getItem(CONFIG.HISTORY_KEY) || '[]');
@@ -778,17 +777,18 @@ function showProgress() {
   showScreen('progress');
 }
 
-// ── LEADERBOARD ───────────────────────────────
 function saveScore(score, mode, acc) {
   const lb = getLeaderboard();
   lb.push({ score, mode, acc, date: new Date().toLocaleDateString('pt-BR') });
   lb.sort((a, b) => b.score - a.score);
   localStorage.setItem(CONFIG.LEADERBOARD_KEY, JSON.stringify(lb.slice(0, 20)));
 }
+
 function getLeaderboard() {
   try { return JSON.parse(localStorage.getItem(CONFIG.LEADERBOARD_KEY)) || []; }
   catch { return []; }
 }
+
 function showLeaderboard() {
   const lb     = getLeaderboard();
   const list   = document.getElementById('lb-list');
@@ -810,7 +810,6 @@ function showLeaderboard() {
   showScreen('leaderboard');
 }
 
-// ── STATS ─────────────────────────────────────
 function saveStats(correct, total, score, xp) {
   const s = getStats();
   s.totalGames    = (s.totalGames   ||0) + 1;
@@ -820,10 +819,12 @@ function saveStats(correct, total, score, xp) {
   s.totalXP       = xp;
   localStorage.setItem(CONFIG.STATS_KEY, JSON.stringify(s));
 }
+
 function getStats() {
   try { return JSON.parse(localStorage.getItem(CONFIG.STATS_KEY)) || {}; }
   catch { return {}; }
 }
+
 function getTotalGames() { return getStats().totalGames || 0; }
 
 function loadHomeStats() {
@@ -857,13 +858,13 @@ function loadHomeStats() {
   if (motEl) motEl.style.display = 'none';
 }
 
-// ── SERVICE WORKER + OFFLINE ──────────────────
 function registerSW() {
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.register('/sw.js')
       .then(r => console.log('SW:', r.scope))
       .catch(e => console.warn('SW erro:', e));
 }
+
 function monitorOffline() {
   window.addEventListener('offline', () => console.log('Offline'));
   window.addEventListener('online', () => console.log('Online'));
