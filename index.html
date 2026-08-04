@@ -249,12 +249,13 @@
     </div>
     <div class="result-actions">
       <button class="btn-start" onclick="startGame()">
-        <span>Novo Quiz</span>
+        <span>Continuar (mesmo tema)</span>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="1 4 1 10 7 10"/>
           <path d="M3.51 15a9 9 0 1 0 .49-5.1L1 10"/>
         </svg>
       </button>
+      <button class="btn-outline" onclick="changeTopicAndStart()">🔀 Trocar Tema</button>
       <button class="btn-outline" onclick="showLeaderboard()">Ver Ranking</button>
       <button class="btn-outline" onclick="showProgress()">Meu Progresso</button>
     </div>
@@ -339,7 +340,7 @@
   <div class="modal-topic-box">
     <div class="modal-topic-header">
       <p class="modal-topic-title">Escolha o Tema</p>
-      <button class="icon-btn" onclick="closeTopicModal()">
+      <button class="icon-btn" onclick="cancelTopicModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
@@ -444,6 +445,15 @@
 // TOPIC SELECTOR
 // ═══════════════════════════════════════════
 let selectedTopic = { icon: '🎲', label: 'Aleatório', key: 'Aleatório' };
+let autoStartAfterTopicSelect = false;
+
+// Chamado pelo botão "Trocar Tema" na tela de resultado:
+// abre o seletor de temas e, assim que o usuário escolher um,
+// já inicia um novo quiz automaticamente com o tema escolhido.
+function changeTopicAndStart() {
+  autoStartAfterTopicSelect = true;
+  openTopicModal();
+}
 
 function openTopicModal() {
   document.getElementById('modal-topic').style.display = 'flex';
@@ -456,8 +466,15 @@ function closeTopicModal() {
   document.getElementById('modal-topic').style.display = 'none';
   document.body.style.overflow = '';
 }
+
+// Fecha o modal sem escolher tema (botão X / clique fora):
+// cancela o auto-start pendente, se houver.
+function cancelTopicModal() {
+  autoStartAfterTopicSelect = false;
+  closeTopicModal();
+}
 function handleTopicOverlayClick(e) {
-  if (e.target === document.getElementById('modal-topic')) closeTopicModal();
+  if (e.target === document.getElementById('modal-topic')) cancelTopicModal();
 }
 function selectTopic(icon, label, key) {
   selectedTopic = { icon, label, key };
@@ -467,6 +484,11 @@ function selectTopic(icon, label, key) {
   const cur = document.getElementById('check-' + key);
   if (cur) cur.textContent = '✓';
   closeTopicModal();
+
+  if (autoStartAfterTopicSelect) {
+    autoStartAfterTopicSelect = false;
+    if (window.startGame) window.startGame();
+  }
 }
 window.getSelectedTopic = function() { return selectedTopic; };
 </script>
