@@ -47,7 +47,7 @@ module.exports = async function handler(req, res) {
     const { difficulty, topic } = req.query;
 
     const response = await openai.chat.completions.create({
-      model:'openrouter/free',
+      model:'google/gemma-3-12b-it:free',
       messages: [
         {
           role: 'user',
