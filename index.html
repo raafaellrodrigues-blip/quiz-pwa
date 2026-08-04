@@ -1,194 +1,483 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Quiz IA</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f0f13" />
+  <meta name="description" content="Quiz interativo com IA — perguntas estilo ENEM geradas pelo Claude" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="QuizIA" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="public/icons/icon-192.png" />
+  <link rel="icon" href="public/icons/icon-192.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <title>QuizIA — Conhecimento Nunca Para</title>
 </head>
 <body>
 
-  <!-- Barra de Loading Inicial -->
-  <div id="boot-loader" class="boot-loader">
-    <div id="loading-bar" class="loading-bar"></div>
-    <p id="loading-msg" class="loading-msg">Carregando...</p>
-  </div>
-
-  <!-- Tela Home -->
-  <div id="screen-home" class="screen">
-    <header class="app-header">
-      <h1>Quiz IA 🧠</h1>
-      <div class="nav-btns">
-        <button id="btn-leaderboard" class="icon-btn">🏆</button>
-        <button id="btn-progress" class="icon-btn">📊</button>
+<!-- ═══════════════════════════════════════════
+     LOADING SCREEN
+═══════════════════════════════════════════ -->
+<div id="screen-loading" class="screen active">
+  <div class="loading-inner">
+    <div class="loading-logo">
+      <div class="logo-pulse">
+        <img src="logo.png" alt="Logo" class="app-logo-img" onerror="this.style.display='none'">
       </div>
-    </header>
-
-    <main class="container">
-      <div id="xp-bar-fill" class="xp-bar"></div>
-      <p id="xp-level-label" class="xp-label">🌱 Iniciante • 0 XP</p>
-
-      <div id="home-motivation" class="motivation-box" style="display:none;"></div>
-      <div id="last-topic-hint" class="last-topic-hint" style="display:none;"></div>
-
-      <div id="home-stats" class="home-stats" style="display:none;">
-        <div class="hstat"><span>Recorde</span><strong id="hs-record">0</strong></div>
-        <div class="hstat"><span>Partidas</span><strong id="hs-games">0</strong></div>
-        <div class="hstat"><span>Precisão</span><strong id="hs-acc">0%</strong></div>
-        <div class="hstat"><span>Nível</span><strong id="hs-level">🌱</strong></div>
-        <div class="hstat"><span>Ofensiva</span><strong id="hs-streak">0</strong></div>
-      </div>
-
-      <h2>Escolha o Tema</h2>
-      <p id="selected-topic-label" class="selected-topic-label">🎯 Aleatório</p>
-      
-      <div class="topics-grid">
-        <button class="topic-card selected" data-topic="aleatorio" onclick="selectTopic('🎯', 'Aleatório', 'aleatorio')">🎯 Aleatório</button>
-        <button class="topic-card" data-topic="historia" onclick="selectTopic('🌎', 'História', 'historia')">🌎 História</button>
-        <button class="topic-card" data-topic="programacao" onclick="selectTopic('💻', 'Programação', 'programacao')">💻 Programação</button>
-        <button class="topic-card" data-topic="medicina" onclick="selectTopic('🩺', 'Medicina', 'medicina')">🩺 Medicina</button>
-        <button class="topic-card" data-topic="enem" onclick="selectTopic('🎓', 'ENEM', 'enem')">🎓 ENEM</button>
-      </div>
-
-      <h2>Modo de Jogo</h2>
-      <div class="modes-grid">
-        <button class="mode-card selected" onclick="selectMode(this, 'estudo')">📖 Estudo</button>
-        <button class="mode-card" onclick="selectMode(this, 'rapido')">⚡ Rápido</button>
-        <button class="mode-card" onclick="selectMode(this, 'desafio')">💀 Desafio</button>
-      </div>
-
-      <h2>Dificuldade</h2>
-      <div class="diff-grid">
-        <button class="diff-pill selected" onclick="selectDiff(this, 'misto')">Misto</button>
-        <button class="diff-pill" onclick="selectDiff(this, 'facil')">Fácil</button>
-        <button class="diff-pill" onclick="selectDiff(this, 'medio')">Médio</button>
-        <button class="diff-pill" onclick="selectDiff(this, 'dificil')">Difícil</button>
-      </div>
-
-      <div class="action-wrap">
-        <button id="btn-start" class="btn-primary">
-          <span id="btn-start-label">Gerar Quiz com IA</span>
-        </button>
-        <p id="start-hint" class="start-hint">10 perguntas • novas a cada partida</p>
-      </div>
-    </main>
-  </div>
-
-  <!-- Overlay Loading IA -->
-  <div id="ai-loading-overlay" class="loading-overlay" style="display:none;">
-    <div class="loading-content">
-      <div id="ai-loading-bar" class="ai-loading-bar"></div>
-      <p id="ai-loading-txt">Gerando questões rápidas... ✨</p>
     </div>
+    <div class="loading-bar-wrap">
+      <div class="loading-bar" id="loading-bar"></div>
+    </div>
+    <p class="loading-msg" id="loading-msg">Inicializando...</p>
   </div>
+</div>
 
-  <!-- Tela Quiz -->
-  <div id="screen-quiz" class="screen">
-    <header class="quiz-header">
-      <button onclick="confirmExit()" class="btn-close">✕</button>
-      <div class="progress-container">
-        <div id="q-progress" class="progress-bar"></div>
-      </div>
-      <span id="q-counter">1/10</span>
-    </header>
-
-    <main class="quiz-body">
-      <div class="q-meta">
-        <span id="q-cat" class="q-cat">Geral</span>
-        <span id="q-diff" class="q-diff medium">Médio</span>
-        <span id="live-score" class="live-score">0</span>
-      </div>
-
-      <div id="timer-wrap" class="timer-wrap" style="display:none;">
-        <svg width="36" height="36" viewBox="0 0 36 36">
-          <path id="ring-fill" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#7c6ff7" stroke-width="3" />
+<!-- ═══════════════════════════════════════════
+     HOME SCREEN
+═══════════════════════════════════════════ -->
+<div id="screen-home" class="screen">
+  <header class="home-header">
+    <span class="logo-text">Raciocine<span class="accent">IA</span></span>
+    <div class="header-btns">
+      <button class="icon-btn" id="btn-progress" title="Meu Progresso">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
         </svg>
-        <span id="timer-num">30</span>
-      </div>
+      </button>
+      <button class="icon-btn" id="btn-leaderboard" title="Ranking">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="3" width="6" height="18"/><rect x="9" y="8" width="6" height="13"/><rect x="16" y="13" width="6" height="8"/>
+        </svg>
+      </button>
+    </div>
+  </header>
 
-      <h2 id="q-text" class="q-text">Carregando pergunta...</h2>
-      <div id="pts-flash" class="pts-flash"></div>
-      <div id="combo-toast" class="combo-toast"></div>
-
-      <div id="options-list" class="options-list"></div>
-
-      <div id="explanation-box" class="explanation-box" style="display:none;"></div>
-
-      <button id="btn-next" class="btn-primary" style="display:none;">Próxima</button>
-    </main>
+  <div class="home-hero">
+    <p class="hero-label">powered by Infocore IA</p>
+    <h1 class="hero-title">Eleve seu<br/><span class="accent">Nível</span></h1>
+    <p class="hero-sub">Perguntas geradas por IA no seu estilo — novas a cada partida</p>
+  <p class="home-motivation" id="home-motivation" style="display:none"></p>
+  <button class="last-topic-hint" id="last-topic-hint" style="display:none"></button>
   </div>
 
-  <!-- Tela Resultado -->
-  <div id="screen-result" class="screen">
-    <main class="container result-container">
-      <div id="r-emoji" class="r-emoji">🏆</div>
-      <h1 id="r-title">Perfeito!</h1>
-      <p id="r-sub">Nota 10! Desempenho impecável!</p>
-
-      <div class="result-stats">
-        <div><span>Pontos</span><strong id="r-score">0</strong></div>
-        <div><span>Acertos</span><strong id="r-correct">0/10</strong></div>
-        <div><span>Combo</span><strong id="r-combo">0x</strong></div>
-        <div><span>Precisão</span><strong id="r-acc">0%</strong></div>
-      </div>
-
-      <p id="r-level" class="r-level">🌱 Iniciante</p>
-      <div id="ach-list" class="ach-list"></div>
-
-      <div class="result-actions">
-        <button class="btn-primary" onclick="restartWithSameTopic()">
-          🔄 Jogar Novamente (Mesmo Tema)
-        </button>
-        <button class="btn-secondary" onclick="goHome()">
-          🎯 Escolher Outro Tema
-        </button>
-      </div>
-    </main>
-  </div>
-
-  <!-- Tela Ranking -->
-  <div id="screen-leaderboard" class="screen">
-    <header class="app-header">
-      <button onclick="goHome()" class="btn-close">← Voltar</button>
-      <h1>Ranking Local</h1>
-    </header>
-    <main class="container">
-      <div id="lb-list" class="lb-list"></div>
-    </main>
-  </div>
-
-  <!-- Tela Progresso -->
-  <div id="screen-progress" class="screen">
-    <header class="app-header">
-      <button onclick="goHome()" class="btn-close">← Voltar</button>
-      <h1>Seu Progresso</h1>
-    </header>
-    <main class="container">
-      <p id="progress-streak" class="progress-streak">0 dias seguidos 🔥</p>
-      <h2>Conquistas e Medalhas</h2>
-      <div id="progress-badges" class="ach-list"></div>
-      <h2>Desempenho por Tema</h2>
-      <div id="progress-chart" class="progress-chart"></div>
-      <h2>Histórico de Partidas</h2>
-      <div id="progress-list" class="history-list"></div>
-    </main>
-  </div>
-
-  <!-- Modal Sair -->
-  <div id="modal-exit" class="modal-overlay" style="display:none;">
-    <div class="modal-box">
-      <h3>Sair da partida?</h3>
-      <p>Seu progresso atual nesta rodada será perdido.</p>
-      <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeModal()">Continuar</button>
-        <button class="btn-primary" onclick="goHome()">Sair</button>
-      </div>
+  <div class="home-stats-row" id="home-stats" style="display:none">
+    <div class="hstat">
+      <span class="hstat-val" id="hs-record">0</span>
+      <span class="hstat-lbl">recorde</span>
+    </div>
+    <div class="hstat-divider"></div>
+    <div class="hstat">
+      <span class="hstat-val" id="hs-games">0</span>
+      <span class="hstat-lbl">partidas</span>
+    </div>
+    <div class="hstat-divider"></div>
+    <div class="hstat">
+      <span class="hstat-val" id="hs-acc">0%</span>
+      <span class="hstat-lbl">precisão</span>
+    </div>
+    <div class="hstat-divider"></div>
+    <div class="hstat">
+      <span class="hstat-val" id="hs-streak" style="font-size:16px">0</span>
+      <span class="hstat-lbl">ofensiva</span>
+    </div>
+    <div class="hstat-divider"></div>
+    <div class="hstat">
+      <span class="hstat-val" id="hs-level" style="font-size:16px">🌱</span>
+      <span class="hstat-lbl">nível</span>
     </div>
   </div>
 
-  <div id="levelup-toast" class="levelup-toast"></div>
-  <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+  <div class="mode-section">
+    <p class="section-label">Modo de jogo</p>
+    <div class="mode-grid">
+      <button class="mode-card selected" data-mode="estudo" onclick="selectMode(this,'estudo')">
+        <div class="mode-icon">📖</div>
+        <div class="mode-name">Estudo</div>
+        <div class="mode-desc">Sem limite de tempo</div>
+      </button>
+      <button class="mode-card" data-mode="rapido" onclick="selectMode(this,'rapido')">
+        <div class="mode-icon">⚡</div>
+        <div class="mode-name">Rápido</div>
+        <div class="mode-desc">30s por questão</div>
+      </button>
+      <button class="mode-card" data-mode="desafio" onclick="selectMode(this,'desafio')">
+        <div class="mode-icon">💀</div>
+        <div class="mode-name">Desafio</div>
+        <div class="mode-desc">15s • hardcore</div>
+      </button>
+    </div>
+  </div>
 
-  <script src="app.js"></script>
+  <div class="topic-section">
+    <p class="section-label">Tema</p>
+    <button class="topic-selector-btn" id="topic-selector-btn" onclick="openTopicModal()">
+      <span class="topic-btn-icon" id="topic-btn-icon">🎲</span>
+      <span class="topic-btn-label" id="topic-btn-label">Aleatório</span>
+      <svg class="topic-btn-arrow" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="diff-section">
+    <p class="section-label">Dificuldade</p>
+    <div class="diff-pills">
+      <button class="diff-pill selected" onclick="selectDiff(this,'misto')">Misto</button>
+      <button class="diff-pill" onclick="selectDiff(this,'facil')">Fácil</button>
+      <button class="diff-pill" onclick="selectDiff(this,'medio')">Médio</button>
+      <button class="diff-pill" onclick="selectDiff(this,'dificil')">Difícil</button>
+    </div>
+  </div>
+
+  <button class="btn-start" id="btn-start" onclick="startGame()">
+    <span id="btn-start-label">Gerar Quiz com IA</span>
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <line x1="5" y1="12" x2="19" y2="12"/>
+      <polyline points="12 5 19 12 12 19"/>
+    </svg>
+  </button>
+  <p class="start-hint" id="start-hint">10 perguntas • novas a cada partida</p>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     AI LOADING OVERLAY
+═══════════════════════════════════════════ -->
+<div id="ai-loading-overlay" style="display:none" class="ai-loading-overlay">
+  <div class="ai-loading-inner">
+    <div class="ai-loading-icon">🧠</div>
+    <p class="ai-loading-title">Gerando perguntas...</p>
+    <div class="skeleton-lines">
+      <div class="skeleton-line w80"></div>
+      <div class="skeleton-line w60"></div>
+      <div class="skeleton-line w90"></div>
+      <div class="skeleton-line w70"></div>
+    </div>
+    <div class="ai-bar-wrap">
+      <div class="ai-loading-bar" id="ai-loading-bar"></div>
+    </div>
+    <p class="ai-loading-sub">A IA está criando questões únicas para você ✨</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     QUIZ SCREEN
+═══════════════════════════════════════════ -->
+<div id="screen-quiz" class="screen">
+  <div class="quiz-topbar">
+    <button class="icon-btn" onclick="confirmExit()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"/>
+        <polyline points="12 19 5 12 12 5"/>
+      </svg>
+    </button>
+    <div class="quiz-progress-wrap">
+      <div class="quiz-progress-bar">
+        <div class="quiz-progress-fill" id="q-progress"></div>
+      </div>
+      <span class="q-counter" id="q-counter">1/10</span>
+    </div>
+    <div class="timer-ring-wrap" id="timer-wrap" style="display:none">
+      <svg class="timer-ring" viewBox="0 0 36 36">
+        <circle class="ring-bg"   cx="18" cy="18" r="15"/>
+        <circle class="ring-fill" id="ring-fill" cx="18" cy="18" r="15" stroke-dasharray="94.25 94.25"/>
+      </svg>
+      <span class="timer-num" id="timer-num">30</span>
+    </div>
+  </div>
+
+  <div class="xp-section">
+    <span class="xp-label" id="xp-level-label">🌱 Iniciante  •  0 XP</span>
+    <div class="xp-bar-wrap">
+      <div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div>
+    </div>
+  </div>
+
+  <div class="quiz-body">
+    <div class="q-meta">
+      <span class="q-cat" id="q-cat">Categoria</span>
+      <span class="q-diff" id="q-diff">Fácil</span>
+    </div>
+    <p class="q-text" id="q-text">Carregando...</p>
+    <div class="pts-flash" id="pts-flash"></div>
+    <div class="options-list" id="options-list"></div>
+    <div class="explanation-box" id="explanation-box" style="display:none"></div>
+    <div class="combo-toast" id="combo-toast"></div>
+  </div>
+
+  <div class="quiz-footer">
+    <div class="live-score-wrap">
+      <span class="ls-label">Pontos</span>
+      <span class="ls-val" id="live-score">0</span>
+    </div>
+    <button class="btn-next" id="btn-next" style="display:none">
+      Próxima
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="5" y1="12" x2="19" y2="12"/>
+        <polyline points="12 5 19 12 12 19"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     RESULT SCREEN
+═══════════════════════════════════════════ -->
+<div id="screen-result" class="screen">
+  <div class="result-inner">
+    <div class="result-hero">
+      <div class="result-emoji" id="r-emoji">🏆</div>
+      <h2 class="result-title" id="r-title">Incrível!</h2>
+      <p class="result-sub" id="r-sub">Você arrasoou!</p>
+      <p class="result-level" id="r-level">🌱 Iniciante</p>
+    </div>
+    <div class="result-score-big">
+      <span id="r-score">0</span>
+      <span class="rsb-label">pontos</span>
+    </div>
+    <div class="result-stats">
+      <div class="rstat"><span class="rstat-val" id="r-correct">0/10</span><span class="rstat-lbl">acertos</span></div>
+      <div class="rstat"><span class="rstat-val" id="r-combo">0x</span><span class="rstat-lbl">combo máx</span></div>
+      <div class="rstat"><span class="rstat-val" id="r-acc">0%</span><span class="rstat-lbl">precisão</span></div>
+    </div>
+    <div class="achievements-section">
+      <p class="section-label">Conquistas desta partida</p>
+      <div class="ach-list" id="ach-list"></div>
+    </div>
+    <div class="result-actions">
+      <button class="btn-start" onclick="startGame()">
+        <span>Novo Quiz</span>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="1 4 1 10 7 10"/>
+          <path d="M3.51 15a9 9 0 1 0 .49-5.1L1 10"/>
+        </svg>
+      </button>
+      <button class="btn-outline" onclick="showLeaderboard()">Ver Ranking</button>
+      <button class="btn-outline" onclick="showProgress()">Meu Progresso</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     PROGRESS SCREEN
+═══════════════════════════════════════════ -->
+<div id="screen-progress" class="screen">
+  <div class="lb-inner">
+    <div class="lb-header">
+      <button class="icon-btn" onclick="goHome()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+      </button>
+      <h2 class="lb-title">Meu Progresso</h2>
+      <div style="width:38px"></div>
+    </div>
+
+    <div class="progress-streak-card">
+      <span class="progress-streak-icon">🔥</span>
+      <div>
+        <p class="progress-streak-val" id="progress-streak">0 dias seguidos 🔥</p>
+        <p class="progress-streak-lbl">Ofensiva atual</p>
+      </div>
+    </div>
+
+    <p class="section-label" style="margin-top:1.5rem">Medalhas</p>
+    <div class="ach-list" id="progress-badges" style="margin-bottom:1.5rem"></div>
+
+    <p class="section-label" style="margin-top:1.5rem">Desempenho por Tema</p>
+    <div id="progress-chart" class="progress-chart-section"></div>
+
+    <p class="section-label" style="margin-top:1.5rem">Histórico de partidas</p>
+    <div class="lb-list" id="progress-list" style="margin-top:.75rem"></div>
+
+    <button class="btn-outline" style="margin-top:1.5rem" onclick="clearLeaderboard()">Limpar histórico</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     LEADERBOARD SCREEN
+═══════════════════════════════════════════ -->
+<div id="screen-leaderboard" class="screen">
+  <div class="lb-inner">
+    <div class="lb-header">
+      <button class="icon-btn" onclick="goHome()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+      </button>
+      <h2 class="lb-title">Ranking</h2>
+      <div style="width:38px"></div>
+    </div>
+    <div class="lb-list" id="lb-list"></div>
+    <button class="btn-outline" style="margin-top:1.5rem" onclick="clearLeaderboard()">Limpar histórico</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL SAÍDA
+═══════════════════════════════════════════ -->
+<div id="modal-exit" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <p class="modal-title">Sair do quiz?</p>
+    <p class="modal-sub">Seu progresso será perdido.</p>
+    <div class="modal-actions">
+      <button class="btn-outline" onclick="closeModal()">Continuar</button>
+      <button class="btn-danger"  onclick="goHome()">Sair</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     MODAL TEMAS
+═══════════════════════════════════════════ -->
+<div id="modal-topic" class="modal-overlay" style="display:none" onclick="handleTopicOverlayClick(event)">
+  <div class="modal-topic-box">
+    <div class="modal-topic-header">
+      <p class="modal-topic-title">Escolha o Tema</p>
+      <button class="icon-btn" onclick="closeTopicModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="modal-topic-scroll">
+
+      <button class="topic-item topic-random" onclick="selectTopic('🎲','Aleatório','Aleatório')">
+        <span class="topic-item-icon">🎲</span><span class="topic-item-name">Aleatório</span><span class="topic-item-check" id="check-Aleatório">✓</span>
+      </button>
+
+      <div class="topic-group-label">📚 Áreas Principais</div>
+      <button class="topic-item" onclick="selectTopic('⚖️','Direito','Direito')"><span class="topic-item-icon">⚖️</span><span class="topic-item-name">Direito</span><span class="topic-item-check" id="check-Direito"></span></button>
+      <button class="topic-item" onclick="selectTopic('🩺','Enfermagem','Enfermagem')"><span class="topic-item-icon">🩺</span><span class="topic-item-name">Enfermagem</span><span class="topic-item-check" id="check-Enfermagem"></span></button>
+      <button class="topic-item" onclick="selectTopic('🏥','Medicina','Medicina')"><span class="topic-item-icon">🏥</span><span class="topic-item-name">Medicina</span><span class="topic-item-check" id="check-Medicina"></span></button>
+      <button class="topic-item" onclick="selectTopic('🧠','Psicologia','Psicologia')"><span class="topic-item-icon">🧠</span><span class="topic-item-name">Psicologia</span><span class="topic-item-check" id="check-Psicologia"></span></button>
+      <button class="topic-item" onclick="selectTopic('📊','Administração','Administração')"><span class="topic-item-icon">📊</span><span class="topic-item-name">Administração</span><span class="topic-item-check" id="check-Administração"></span></button>
+      <button class="topic-item" onclick="selectTopic('💰','Contabilidade','Contabilidade')"><span class="topic-item-icon">💰</span><span class="topic-item-name">Contabilidade</span><span class="topic-item-check" id="check-Contabilidade"></span></button>
+      <button class="topic-item" onclick="selectTopic('⚙️','Engenharia','Engenharia')"><span class="topic-item-icon">⚙️</span><span class="topic-item-name">Engenharia</span><span class="topic-item-check" id="check-Engenharia"></span></button>
+      <button class="topic-item" onclick="selectTopic('🔧','Engenharia Mecânica','Eng. Mecânica')"><span class="topic-item-icon">🔧</span><span class="topic-item-name">Engenharia Mecânica</span><span class="topic-item-check" id="check-Eng. Mecânica"></span></button>
+      <button class="topic-item" onclick="selectTopic('🏗️','Engenharia Civil','Eng. Civil')"><span class="topic-item-icon">🏗️</span><span class="topic-item-name">Engenharia Civil</span><span class="topic-item-check" id="check-Eng. Civil"></span></button>
+      <button class="topic-item" onclick="selectTopic('🌿','Engenharia Ambiental','Eng. Ambiental')"><span class="topic-item-icon">🌿</span><span class="topic-item-name">Engenharia Ambiental</span><span class="topic-item-check" id="check-Eng. Ambiental"></span></button>
+      <button class="topic-item" onclick="selectTopic('🦽','Fisioterapia','Fisioterapia')"><span class="topic-item-icon">🦽</span><span class="topic-item-name">Fisioterapia</span><span class="topic-item-check" id="check-Fisioterapia"></span></button>
+      <button class="topic-item" onclick="selectTopic('📐','Pedagogia','Pedagogia')"><span class="topic-item-icon">📐</span><span class="topic-item-name">Pedagogia</span><span class="topic-item-check" id="check-Pedagogia"></span></button>
+      <button class="topic-item" onclick="selectTopic('💻','Tecnologia da Informação','TI')"><span class="topic-item-icon">💻</span><span class="topic-item-name">Tecnologia da Informação</span><span class="topic-item-check" id="check-TI"></span></button>
+      <button class="topic-item" onclick="selectTopic('👨‍💻','Programação','Programação')"><span class="topic-item-icon">👨‍💻</span><span class="topic-item-name">Programação</span><span class="topic-item-check" id="check-Programação"></span></button>
+      <button class="topic-item" onclick="selectTopic('🌐','Redes de Computadores','Redes')"><span class="topic-item-icon">🌐</span><span class="topic-item-name">Redes de Computadores</span><span class="topic-item-check" id="check-Redes"></span></button>
+
+      <div class="topic-group-label">🎓 Educação & Concursos</div>
+      <button class="topic-item" onclick="selectTopic('🎓','ENEM','ENEM')"><span class="topic-item-icon">🎓</span><span class="topic-item-name">ENEM</span><span class="topic-item-check" id="check-ENEM"></span></button>
+      <button class="topic-item" onclick="selectTopic('📖','Vestibulares','Vestibulares')"><span class="topic-item-icon">📖</span><span class="topic-item-name">Vestibulares</span><span class="topic-item-check" id="check-Vestibulares"></span></button>
+      <button class="topic-item" onclick="selectTopic('🏛️','Concursos Públicos','Concursos')"><span class="topic-item-icon">🏛️</span><span class="topic-item-name">Concursos Públicos</span><span class="topic-item-check" id="check-Concursos"></span></button>
+      <button class="topic-item" onclick="selectTopic('📘','Ensino Fundamental','Fund.')"><span class="topic-item-icon">📘</span><span class="topic-item-name">Ensino Fundamental</span><span class="topic-item-check" id="check-Fund."></span></button>
+      <button class="topic-item" onclick="selectTopic('📗','Ensino Médio','E. Médio')"><span class="topic-item-icon">📗</span><span class="topic-item-name">Ensino Médio</span><span class="topic-item-check" id="check-E. Médio"></span></button>
+
+      <div class="topic-group-label">🔬 Ciências</div>
+      <button class="topic-item" onclick="selectTopic('➗','Matemática','Matemática')"><span class="topic-item-icon">➗</span><span class="topic-item-name">Matemática</span><span class="topic-item-check" id="check-Matemática"></span></button>
+      <button class="topic-item" onclick="selectTopic('⚛️','Física','Física')"><span class="topic-item-icon">⚛️</span><span class="topic-item-name">Física</span><span class="topic-item-check" id="check-Física"></span></button>
+      <button class="topic-item" onclick="selectTopic('🧪','Química','Química')"><span class="topic-item-icon">🧪</span><span class="topic-item-name">Química</span><span class="topic-item-check" id="check-Química"></span></button>
+      <button class="topic-item" onclick="selectTopic('🧬','Biologia','Biologia')"><span class="topic-item-icon">🧬</span><span class="topic-item-name">Biologia</span><span class="topic-item-check" id="check-Biologia"></span></button>
+
+      <div class="topic-group-label">🌎 Humanas</div>
+      <button class="topic-item" onclick="selectTopic('📜','História','História')"><span class="topic-item-icon">📜</span><span class="topic-item-name">História</span><span class="topic-item-check" id="check-História"></span></button>
+      <button class="topic-item" onclick="selectTopic('🌍','Geografia','Geografia')"><span class="topic-item-icon">🌍</span><span class="topic-item-name">Geografia</span><span class="topic-item-check" id="check-Geografia"></span></button>
+      <button class="topic-item" onclick="selectTopic('🏛️','Filosofia','Filosofia')"><span class="topic-item-icon">🏛️</span><span class="topic-item-name">Filosofia</span><span class="topic-item-check" id="check-Filosofia"></span></button>
+      <button class="topic-item" onclick="selectTopic('👥','Sociologia','Sociologia')"><span class="topic-item-icon">👥</span><span class="topic-item-name">Sociologia</span><span class="topic-item-check" id="check-Sociologia"></span></button>
+
+      <div class="topic-group-label">🗣️ Linguagens</div>
+      <button class="topic-item" onclick="selectTopic('🇧🇷','Português','Português')"><span class="topic-item-icon">🇧🇷</span><span class="topic-item-name">Português</span><span class="topic-item-check" id="check-Português"></span></button>
+      <button class="topic-item" onclick="selectTopic('🇺🇸','Inglês','Inglês')"><span class="topic-item-icon">🇺🇸</span><span class="topic-item-name">Inglês</span><span class="topic-item-check" id="check-Inglês"></span></button>
+      <button class="topic-item" onclick="selectTopic('🇪🇸','Espanhol','Espanhol')"><span class="topic-item-icon">🇪🇸</span><span class="topic-item-name">Espanhol</span><span class="topic-item-check" id="check-Espanhol"></span></button>
+      <button class="topic-item" onclick="selectTopic('✍️','Interpretação de Texto','Interpret.')"><span class="topic-item-icon">✍️</span><span class="topic-item-name">Interpretação de Texto</span><span class="topic-item-check" id="check-Interpret."></span></button>
+
+      <div class="topic-group-label">💼 Profissional / Técnico</div>
+      <button class="topic-item" onclick="selectTopic('🖥️','Informática Básica','Informática')"><span class="topic-item-icon">🖥️</span><span class="topic-item-name">Informática Básica</span><span class="topic-item-check" id="check-Informática"></span></button>
+      <button class="topic-item" onclick="selectTopic('📊','Excel','Excel')"><span class="topic-item-icon">📊</span><span class="topic-item-name">Excel</span><span class="topic-item-check" id="check-Excel"></span></button>
+      <button class="topic-item" onclick="selectTopic('⚠️','Segurança do Trabalho','Seg. Trabalho')"><span class="topic-item-icon">⚠️</span><span class="topic-item-name">Segurança do Trabalho</span><span class="topic-item-check" id="check-Seg. Trabalho"></span></button>
+      <button class="topic-item" onclick="selectTopic('📢','Marketing Digital','Marketing')"><span class="topic-item-icon">📢</span><span class="topic-item-name">Marketing Digital</span><span class="topic-item-check" id="check-Marketing"></span></button>
+      <button class="topic-item" onclick="selectTopic('💵','Vendas','Vendas')"><span class="topic-item-icon">💵</span><span class="topic-item-name">Vendas</span><span class="topic-item-check" id="check-Vendas"></span></button>
+
+      <div class="topic-group-label">🎯 Extras</div>
+      <button class="topic-item" onclick="selectTopic('🔥','Raciocínio Lógico','R. Lógico')"><span class="topic-item-icon">🔥</span><span class="topic-item-name">Raciocínio Lógico</span><span class="topic-item-check" id="check-R. Lógico"></span></button>
+      <button class="topic-item" onclick="selectTopic('✝️','Perguntas Bíblicas','Bíblia')"><span class="topic-item-icon">✝️</span><span class="topic-item-name">Perguntas Bíblicas</span><span class="topic-item-check" id="check-Bíblia"></span></button>
+      <button class="topic-item" onclick="selectTopic('📰','Atualidades','Atualidades')"><span class="topic-item-icon">📰</span><span class="topic-item-name">Atualidades</span><span class="topic-item-check" id="check-Atualidades"></span></button>
+      <button class="topic-item" onclick="selectTopic('🌐','Cultura Geral','Cultura Geral')"><span class="topic-item-icon">🌐</span><span class="topic-item-name">Cultura Geral</span><span class="topic-item-check" id="check-Cultura Geral"></span></button>
+      <button class="topic-item" onclick="selectTopic('🤯','Curiosidades','Curiosidades')"><span class="topic-item-icon">🤯</span><span class="topic-item-name">Curiosidades</span><span class="topic-item-check" id="check-Curiosidades"></span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// LOADING SCREEN
+// ═══════════════════════════════════════════
+(function initLoading() {
+  const bar   = document.getElementById('loading-bar');
+  const msg   = document.getElementById('loading-msg');
+  const steps = [
+    { pct: 20,  txt: 'Carregando interface...' },
+    { pct: 55,  txt: 'Conectando com a IA...' },
+    { pct: 80,  txt: 'Preparando quiz...' },
+    { pct: 100, txt: 'Pronto!' },
+  ];
+  let i = 0;
+  function nextStep() {
+    if (i >= steps.length) {
+      setTimeout(() => {
+        document.getElementById('screen-loading').classList.remove('active');
+        document.getElementById('screen-home').classList.add('active');
+      }, 350);
+      return;
+    }
+    const s = steps[i++];
+    bar.style.width = s.pct + '%';
+    msg.textContent = s.txt;
+    setTimeout(nextStep, i === steps.length ? 600 : 500);
+  }
+  setTimeout(nextStep, 400);
+})();
+
+// ═══════════════════════════════════════════
+// TOPIC SELECTOR
+// ═══════════════════════════════════════════
+let selectedTopic = { icon: '🎲', label: 'Aleatório', key: 'Aleatório' };
+
+function openTopicModal() {
+  document.getElementById('modal-topic').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  document.querySelectorAll('.topic-item-check').forEach(el => el.textContent = '');
+  const cur = document.getElementById('check-' + selectedTopic.key);
+  if (cur) cur.textContent = '✓';
+}
+function closeTopicModal() {
+  document.getElementById('modal-topic').style.display = 'none';
+  document.body.style.overflow = '';
+}
+function handleTopicOverlayClick(e) {
+  if (e.target === document.getElementById('modal-topic')) closeTopicModal();
+}
+function selectTopic(icon, label, key) {
+  selectedTopic = { icon, label, key };
+  document.getElementById('topic-btn-icon').textContent = icon;
+  document.getElementById('topic-btn-label').textContent = label;
+  document.querySelectorAll('.topic-item-check').forEach(el => el.textContent = '');
+  const cur = document.getElementById('check-' + key);
+  if (cur) cur.textContent = '✓';
+  closeTopicModal();
+}
+window.getSelectedTopic = function() { return selectedTopic; };
+</script>
+
+<!-- CONFETE -->
+<canvas id="confetti-canvas" style="position:fixed;inset:0;pointer-events:none;z-index:999;display:none"></canvas>
+
+<!-- LEVEL UP TOAST -->
+<div id="levelup-toast" class="levelup-toast"></div>
+
+<script src="app.js"></script>
 </body>
 </html>
+
