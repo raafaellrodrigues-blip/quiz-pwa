@@ -93,6 +93,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-leaderboard')?.addEventListener('click', showLeaderboard);
   document.getElementById('btn-progress')?.addEventListener('click', showProgress);
+  document.getElementById('btn-start')?.addEventListener('click', startGame);
 
   setTimeout(boot, 200);
 });
@@ -194,29 +195,47 @@ function selectDiff(el, diff) {
 }
 
 // ── INÍCIO ────────────────────────────────────
-// Função para resetar e iniciar uma nova partida
-function startGame() {
-  // 1. Oculta telas ativas (especialmente a tela de resultados)
-  document.querySelectorAll('.screen').forEach(screen => {
-    screen.classList.remove('active');
-  });
+async function startGame() {
+  const btnStart = document.getElementById('btn-start');
+  const btnLabel = document.getElementById('btn-start-label');
+  const startHint = document.getElementById('start-hint');
 
-  // 2. Garante que modais ou overlays fiquem fechados
-  const loadingOverlay = document.getElementById('ai-loading-overlay');
-  if (loadingOverlay) loadingOverlay.style.display = 'none';
+  if (btnStart) btnStart.disabled = true;
 
-  // 3. Reseta o estado do Quiz
-  currentQuestionIndex = 0;
-  score = 0;
-  combo = 0;
-  questions = []; // Limpa o array de perguntas anteriores
+  showSkeletonLoading(btnLabel || { textContent: '' }, startHint || { textContent: '' });
 
-  // 4. Exibe a tela do Quiz ou a Home
-  document.getElementById('screen-home').classList.add('active');
+  const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
 
-  // Caso seu fluxo vá direto para a busca de perguntas:
-  // fetchQuestions(); 
+  try {
+    const qs = await fetchQuestions(G.difficulty, tema);
+    hideSkeletonLoading(btnLabel || { textContent: '' }, startHint || { textContent: '' });
+
+    if (!qs || qs.length === 0) {
+      alert('Não foi possível obter as perguntas da IA. Tente novamente!');
+      if (btnStart) btnStart.disabled = false;
+      return;
+    }
+
+    // Reinicia dados da partida
+    G.questions = qs;
+    G.idx = 0;
+    G.score = 0;
+    G.combo = 0;
+    G.maxCombo = 0;
+    G.correct = 0;
+    G.answered = false;
+
+    showScreen('quiz');
+    renderQuestion();
+
+  } catch (err) {
+    console.error('Erro ao iniciar jogo:', err);
+    hideSkeletonLoading(btnLabel || { textContent: '' }, startHint || { textContent: '' });
+    alert('Erro de conexão com o servidor. Verifique sua API.');
+    if (btnStart) btnStart.disabled = false;
+  }
 }
+
 // ── SKELETON / LOADING DA IA ──────────────────
 let skeletonInterval = null;
 const skeletonMsgs = [
@@ -265,7 +284,7 @@ async function fetchQuestions(diff, tema) {
     return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); 
   }
 
-  // Faz duas requisições simultâneas de 5 questões cada
+  // Requisição para buscar perguntas da API
   const fetchBatch = async () => {
     const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=5');
     if (!res.ok) throw new Error('API Error: ' + res.status);
@@ -614,9 +633,14 @@ function showResults() {
   if (pct >= 80) setTimeout(launchConfetti, 400);
   if (G.level > G.prevLevel) setTimeout(() => showLevelUp(G.level), 900);
 
-  document.getElementById('btn-start').disabled = false;
-  document.getElementById('btn-start-label').textContent = 'Gerar Quiz com IA';
-  document.getElementById('start-hint').textContent = '10 perguntas • novas a cada partida';
+  const btnStart = document.getElementById('btn-start');
+  if (btnStart) btnStart.disabled = false;
+
+  const btnLabel = document.getElementById('btn-start-label');
+  if (btnLabel) btnLabel.textContent = 'Gerar Quiz com IA';
+
+  const startHint = document.getElementById('start-hint');
+  if (startHint) startHint.textContent = '10 perguntas • novas a cada partida';
 }
 
 function computeAchievements(pct) {
