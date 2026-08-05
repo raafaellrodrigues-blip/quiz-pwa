@@ -220,8 +220,13 @@ async function startGame() {
   } catch (err) {
     console.error(err);
     hideSkeletonLoading(label, hint);
-    hint.textContent  = '❌ Erro no carregamento. Tente novamente.';
-    label.textContent = 'Tentar novamente';
+    if (err.status === 429 || err.code === 'rate_limit') {
+      hint.textContent  = '⏳ Limite diário de gerações atingido. Tente novamente mais tarde.';
+      label.textContent = 'Indisponível por hoje';
+    } else {
+      hint.textContent  = '❌ Erro no carregamento. Tente novamente.';
+      label.textContent = 'Tentar novamente';
+    }
     btn.disabled = false;
   }
 }
@@ -264,32 +269,38 @@ function hideSkeletonLoading(label, hint) {
   hint.textContent  = '10 perguntas • novas a cada partida';
 }
 
-// ── CACHE / FETCH PARALELO ───────────────────
+// ── CACHE / FETCH ─────────────────────────────
 async function fetchQuestions(diff, tema) {
   tema = tema || 'Aleatório';
   const key = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
   const cached = getCached(key);
-  if (cached && cached.length >= CONFIG.TOTAL_QUESTIONS) { 
-    console.log('Cache hit:', diff, tema); 
-    return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS); 
+  if (cached && cached.length >= CONFIG.TOTAL_QUESTIONS) {
+    console.log('Cache hit:', diff, tema);
+    return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS);
   }
 
-  // Faz duas requisições simultâneas de 5 questões cada
-  const fetchBatch = async () => {
-    const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=5');
-    if (!res.ok) throw new Error('API Error: ' + res.status);
-    const data = await res.json();
-    return data.questions || [];
-  };
+  // Uma única requisição para as 10 questões (antes eram 2 requisições
+  // paralelas de 5 — isso dobrava o consumo da cota diária gratuita do
+  // OpenRouter sem necessidade real).
+  const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=' + CONFIG.TOTAL_QUESTIONS);
 
-  const results = await Promise.all([fetchBatch(), fetchBatch()]);
-  const combined = [...results[0], ...results[1]];
-
-  if (combined.length > 0) {
-    setCache(key, combined);
+  if (!res.ok) {
+    let body = null;
+    try { body = await res.json(); } catch(e) {}
+    const err = new Error((body && body.details) || ('API Error: ' + res.status));
+    err.status = res.status;
+    err.code   = body && body.error;
+    throw err;
   }
 
-  return shuffle(combined).slice(0, CONFIG.TOTAL_QUESTIONS);
+  const data = await res.json();
+  const questions = data.questions || [];
+
+  if (questions.length > 0) {
+    setCache(key, questions);
+  }
+
+  return shuffle(questions).slice(0, CONFIG.TOTAL_QUESTIONS);
 }
 
 function getCached(key) {
