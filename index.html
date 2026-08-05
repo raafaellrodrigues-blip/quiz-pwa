@@ -126,10 +126,10 @@
   <div class="diff-section">
     <p class="section-label">Dificuldade</p>
     <div class="diff-pills">
-      <button class="diff-pill selected" onclick="selectDiff(this,'misto')">Misto</button>
-      <button class="diff-pill" onclick="selectDiff(this,'facil')">Fácil</button>
-      <button class="diff-pill" onclick="selectDiff(this,'medio')">Médio</button>
-      <button class="diff-pill" onclick="selectDiff(this,'dificil')">Difícil</button>
+      <button class="diff-pill selected" data-diff="misto" onclick="selectDiff(this,'misto')">Misto</button>
+      <button class="diff-pill" data-diff="facil" onclick="selectDiff(this,'facil')">Fácil</button>
+      <button class="diff-pill" data-diff="medio" onclick="selectDiff(this,'medio')">Médio</button>
+      <button class="diff-pill" data-diff="dificil" onclick="selectDiff(this,'dificil')">Difícil</button>
     </div>
   </div>
 
@@ -247,6 +247,16 @@
       <p class="section-label">Conquistas desta partida</p>
       <div class="ach-list" id="ach-list"></div>
     </div>
+    <div class="diff-section">
+      <p class="section-label">Dificuldade da próxima partida</p>
+      <div class="diff-pills">
+        <button class="diff-pill" data-diff="misto" onclick="selectDiff(this,'misto')">Misto</button>
+        <button class="diff-pill" data-diff="facil" onclick="selectDiff(this,'facil')">Fácil</button>
+        <button class="diff-pill" data-diff="medio" onclick="selectDiff(this,'medio')">Médio</button>
+        <button class="diff-pill" data-diff="dificil" onclick="selectDiff(this,'dificil')">Difícil</button>
+      </div>
+    </div>
+
     <div class="result-actions">
       <button class="btn-start" onclick="startGame()">
         <span>Continuar (mesmo tema)</span>
@@ -258,6 +268,7 @@
       <button class="btn-outline" onclick="changeTopicAndStart()">🔀 Trocar Tema</button>
       <button class="btn-outline" onclick="showLeaderboard()">Ver Ranking</button>
       <button class="btn-outline" onclick="showProgress()">Meu Progresso</button>
+      <button class="btn-outline" onclick="goHome()">🏠 Início</button>
     </div>
   </div>
 </div>

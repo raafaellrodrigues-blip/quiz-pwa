@@ -170,8 +170,27 @@ function goHome() {
   if (G.timer) clearInterval(G.timer);
   if (G.autoNextTimer) clearTimeout(G.autoNextTimer);
   if (G.autoNextTick) clearInterval(G.autoNextTick);
+  resetStartButton();
+  syncDiffPillsUI();
   loadHomeStats();
   showScreen('home');
+}
+
+// Garante que o botão "Gerar Quiz com IA" nunca fique travado desabilitado.
+// Antes, ele só era reabilitado dentro de showResults() — então se o
+// usuário saísse do quiz sem terminar (ou por qualquer caminho que não
+// passasse por lá), o botão ficava "morto" na home pra sempre. Agora
+// qualquer volta pra home (goHome) reseta o estado de forma defensiva.
+function resetStartButton() {
+  const btn   = document.getElementById('btn-start');
+  const label = document.getElementById('btn-start-label');
+  const hint  = document.getElementById('start-hint');
+  if (btn)   btn.disabled = false;
+  if (label) label.textContent = 'Gerar Quiz com IA';
+  if (hint)  hint.textContent  = '10 perguntas • novas a cada partida';
+  clearInterval(skeletonInterval);
+  const overlay = document.getElementById('ai-loading-overlay');
+  if (overlay) overlay.style.display = 'none';
 }
 
 function confirmExit() { document.getElementById('modal-exit').style.display = 'flex'; }
@@ -188,9 +207,18 @@ function selectMode(el, mode) {
 }
 
 function selectDiff(el, diff) {
-  document.querySelectorAll('.diff-pill').forEach(p => p.classList.remove('selected'));
-  el.classList.add('selected');
   G.difficulty = diff;
+  syncDiffPillsUI();
+}
+
+// Existem dois conjuntos de pílulas de dificuldade no DOM (home e tela de
+// resultado). Esta função marca como "selected" todas as que correspondem
+// à dificuldade atual (G.difficulty), então os dois conjuntos ficam sempre
+// sincronizados entre si, não importa em qual tela o usuário clicou.
+function syncDiffPillsUI() {
+  document.querySelectorAll('.diff-pill').forEach(p => {
+    p.classList.toggle('selected', p.dataset.diff === G.difficulty);
+  });
 }
 
 // ── INÍCIO ────────────────────────────────────
@@ -629,14 +657,13 @@ function showResults() {
 
   saveScore(G.score, G.mode, pct);
   saveStats(G.correct, CONFIG.TOTAL_QUESTIONS, G.score, G.xp);
+  syncDiffPillsUI();
   showScreen('result');
 
   if (pct >= 80) setTimeout(launchConfetti, 400);
   if (G.level > G.prevLevel) setTimeout(() => showLevelUp(G.level), 900);
 
-  document.getElementById('btn-start').disabled = false;
-  document.getElementById('btn-start-label').textContent = 'Gerar Quiz com IA';
-  document.getElementById('start-hint').textContent = '10 perguntas • novas a cada partida';
+  resetStartButton();
 }
 
 function computeAchievements(pct) {
