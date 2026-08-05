@@ -151,10 +151,11 @@ function showLastTopicSuggestion() {
 function prefetchQuestions() {
   const key = CONFIG.CACHE_KEY + '_misto_Aleatório';
   if (getCached(key)) return;
+  // fetchQuestions() já cuida de gravar o pool no cache internamente —
+  // não gravar de novo aqui (isso sobrescrevia o pool acumulado com só
+  // as 10 selecionadas, perdendo o controle de "já vistas").
   setTimeout(() => {
-    fetchQuestions('misto', 'Aleatório').then(qs => {
-      if (qs && qs.length) setCache(key, qs);
-    }).catch(() => {});
+    fetchQuestions('misto', 'Aleatório').catch(() => {});
   }, 2500);
 }
 
@@ -298,19 +299,18 @@ function hideSkeletonLoading(label, hint) {
 }
 
 // ── CACHE / FETCH ─────────────────────────────
-async function fetchQuestions(diff, tema) {
-  tema = tema || 'Aleatório';
-  const key = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
-  const cached = getCached(key);
-  if (cached && cached.length >= CONFIG.TOTAL_QUESTIONS) {
-    console.log('Cache hit:', diff, tema);
-    return shuffle(cached).slice(0, CONFIG.TOTAL_QUESTIONS);
-  }
+// Antes: o cache guardava exatamente 10 questões por tema+dificuldade e,
+// em cada "Continuar", só embaralhava essas mesmas 10 de novo — por isso
+// repetia. Agora: mantemos um pool acumulado (cresce a cada busca nova) e
+// uma lista separada de "já vistas" nesta sessão de cache. A cada partida,
+// priorizamos questões ainda não vistas; só voltamos a repetir se o pool
+// realmente se esgotar (ou se a API estiver fora do ar).
+function questionHash(q) {
+  return (q.question || '').trim().toLowerCase();
+}
 
-  // Uma única requisição para as 10 questões (antes eram 2 requisições
-  // paralelas de 5 — isso dobrava o consumo da cota diária gratuita do
-  // OpenRouter sem necessidade real).
-  const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=' + CONFIG.TOTAL_QUESTIONS);
+async function requestQuestionsFromAPI(diff, tema, count) {
+  const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=' + count);
 
   if (!res.ok) {
     let body = null;
@@ -322,13 +322,58 @@ async function fetchQuestions(diff, tema) {
   }
 
   const data = await res.json();
-  const questions = data.questions || [];
+  return data.questions || [];
+}
 
-  if (questions.length > 0) {
-    setCache(key, questions);
+async function fetchQuestions(diff, tema) {
+  tema = tema || 'Aleatório';
+  const poolKey = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
+  const usedKey = poolKey + '_used';
+
+  let pool = getCached(poolKey) || [];
+  let used = new Set(getCached(usedKey) || []);
+  let unused = pool.filter(q => !used.has(questionHash(q)));
+
+  if (unused.length < CONFIG.TOTAL_QUESTIONS) {
+    try {
+      const fresh = await requestQuestionsFromAPI(diff, tema, CONFIG.TOTAL_QUESTIONS);
+      const existingHashes = new Set(pool.map(questionHash));
+      const newOnes = fresh.filter(q => !existingHashes.has(questionHash(q)));
+      pool = [...pool, ...newOnes];
+
+      // Limita o tamanho do pool guardado pra não crescer sem parar
+      const MAX_POOL = CONFIG.TOTAL_QUESTIONS * 4;
+      if (pool.length > MAX_POOL) pool = pool.slice(-MAX_POOL);
+
+      setCache(poolKey, pool);
+      unused = pool.filter(q => !used.has(questionHash(q)));
+    } catch (err) {
+      // Se a API falhar (ex: limite diário) mas já tivermos pool guardado,
+      // preferimos reaproveitar perguntas antigas a travar o jogo.
+      if (pool.length === 0) throw err;
+      console.warn('Falha ao buscar questões novas, reaproveitando pool existente:', err.message);
+    }
   }
 
-  return shuffle(questions).slice(0, CONFIG.TOTAL_QUESTIONS);
+  let selected;
+  if (unused.length >= CONFIG.TOTAL_QUESTIONS) {
+    selected = shuffle(unused).slice(0, CONFIG.TOTAL_QUESTIONS);
+  } else {
+    // Pool insuficiente mesmo após tentar buscar mais (ex: API fora do ar) —
+    // melhor repetir algumas do que não iniciar o quiz.
+    console.warn('Pool de questões inéditas insuficiente, reaproveitando algumas já vistas.');
+    selected = shuffle(pool).slice(0, Math.min(CONFIG.TOTAL_QUESTIONS, pool.length));
+    let i = 0;
+    while (selected.length < CONFIG.TOTAL_QUESTIONS && pool.length > 0) {
+      selected.push(pool[i % pool.length]);
+      i++;
+    }
+  }
+
+  selected.forEach(q => used.add(questionHash(q)));
+  setCache(usedKey, [...used]);
+
+  return selected;
 }
 
 function getCached(key) {
