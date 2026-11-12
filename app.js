@@ -99,6 +99,7 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function boot() {
+  if (window.Cloud && !window.Cloud.authenticated) { showScreen('auth'); return; }
   animateLoading(
     ['Conectando com a IA...', 'Carregando sistema...', 'Pronto!'],
     () => {
@@ -150,6 +151,7 @@ function showLastTopicSuggestion() {
 
 // ── PREFETCH ──────────────────────────────────
 function prefetchQuestions() {
+  if (window.Cloud && !window.Cloud.authenticated) return;
   const key = CONFIG.CACHE_KEY + '_misto_Aleatório';
   if (getCached(key)) return;
   // fetchQuestions() já cuida de gravar o pool no cache internamente —
@@ -162,6 +164,7 @@ function prefetchQuestions() {
 
 // ── NAVEGAÇÃO ─────────────────────────────────
 function showScreen(name) {
+  if (window.Cloud && !window.Cloud.authenticated) name = 'auth';
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   const el = document.getElementById('screen-' + name);
   if (el) el.classList.add('active');
@@ -225,6 +228,7 @@ function syncDiffPillsUI() {
 
 // ── INÍCIO ────────────────────────────────────
 async function startGame() {
+  if (window.Cloud && !window.Cloud.authenticated) { showScreen('auth'); return; }
   const btn   = document.getElementById('btn-start');
   const label = document.getElementById('btn-start-label');
   const hint  = document.getElementById('start-hint');
@@ -315,6 +319,11 @@ function questionHash(q) {
 }
 
 async function requestQuestionsFromAPI(diff, tema, count) {
+  if (window.Cloud) {
+    const data = await Cloud.questions(diff, tema, count);
+    if (!Array.isArray(data.questions) || !data.questions.length || !data.questions.every(isValidQuestion)) throw new Error('Sem questões válidas disponíveis neste tema.');
+    return data.questions;
+  }
   const res = await fetch(CONFIG.API_ENDPOINT + '?difficulty=' + diff + '&topic=' + encodeURIComponent(tema) + '&count=' + count);
 
   if (!res.ok) {

@@ -18,7 +18,24 @@
   <link rel="stylesheet" href="style.css" />
   <title>RaciocineIA — Eleve seu nível</title>
 </head>
-<body>
+<body class="auth-locked">
+<section id="screen-auth" class="auth-page" aria-labelledby="auth-title">
+ <div class="auth-brand"><img src="public/brand/raciocine-mark.png" width="80" height="80" alt=""><span>Raciocine<span class="accent">IA</span></span><h1>Sua mente. Seu próximo nível.</h1><p>Estude, acompanhe sua evolução e conquiste seu lugar no ranking.</p></div>
+ <div class="auth-card">
+  <p class="auth-eyebrow">BEM-VINDO AO RACIOCINEIA</p><h2 id="auth-title">Entre para continuar</h2>
+  <p class="auth-intro">Acesse sua conta para estudar e salvar seu progresso.</p>
+  <p id="auth-status" class="auth-status" role="status" aria-live="polite">Preparando acesso seguro…</p>
+  <form id="auth-form">
+   <label for="account-email">E-mail</label><input id="account-email" type="email" autocomplete="email" required placeholder="seuemail@exemplo.com">
+   <label for="account-password">Senha</label><input id="account-password" type="password" autocomplete="current-password" minlength="8" required placeholder="Sua senha">
+   <button class="auth-submit" type="submit">Entrar</button>
+   <button class="auth-recover" type="button" data-account-action="recover">Esqueci minha senha</button>
+   <div class="auth-divider"><span>Ainda não tem uma conta?</span></div>
+   <button class="auth-signup" type="button" data-account-action="signup">Criar minha conta</button>
+  </form>
+  <p class="auth-ranking-note">Todas as contas participam do ranking. Seu nome público e os pontos das partidas online validadas aparecem para os outros jogadores. Seu e-mail permanece privado.</p>
+ </div>
+</section>
 
 <!-- ═══════════════════════════════════════════
      LOADING SCREEN
@@ -522,13 +539,11 @@ window.getSelectedTopic = function() { return selectedTopic; };
  <button class="account-close" aria-label="Fechar" onclick="this.closest('dialog').close()">×</button>
  <h2>Sua conta RaciocineIA</h2>
  <p id="account-status" role="status" aria-live="polite">Carregando configuração…</p>
- <div id="account-login"><label>E-mail<input id="account-email" type="email" autocomplete="email"></label><label>Senha<input id="account-password" type="password" autocomplete="current-password" minlength="8"></label>
- <div class="account-actions"><button data-account-action="login">Entrar</button><button data-account-action="signup">Criar conta</button><button data-account-action="recover">Recuperar senha</button></div></div>
+ <div id="account-login" hidden></div>
  <div id="account-profile" hidden><label>Nome público<input id="public-name" maxlength="30" autocomplete="nickname"></label>
- <label><input id="public-listed" type="checkbox"> Quero aparecer no ranking público</label>
- <p>Apenas seu nome e suas métricas de jogo serão públicos. O ranking soma pontos de partidas online validadas.</p>
+ <p>Participação no ranking: <strong>automática para todas as contas.</strong> Escolha o nome público que os outros jogadores verão. Seu e-mail permanece privado.</p>
  <div class="account-actions"><button data-account-action="profile">Salvar perfil</button><button id="import-local" data-account-action="import" hidden>Importar progresso deste dispositivo</button><button onclick="Cloud.sync()">Sincronizar novamente</button><button data-account-action="logout">Sair</button></div>
- <label>Nova senha<input id="new-account-password" type="password" autocomplete="new-password" oninput="document.getElementById('account-password').value=this.value"></label><button data-account-action="password">Atualizar senha</button>
+ <label>Nova senha<input id="new-account-password" type="password" autocomplete="new-password" minlength="8"></label><button data-account-action="password">Atualizar senha</button>
  </div><p>O histórico local importado e a prática offline ficam fora do ranking.</p>
 </dialog>
 <script src="cloud.js"></script>

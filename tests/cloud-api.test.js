@@ -25,3 +25,9 @@ test('config never serializes server secrets',async()=>{
  const previous=process.env.SUPABASE_SERVICE_ROLE_KEY;process.env.SUPABASE_SERVICE_ROLE_KEY='never_expose_this';
  try{const r=response();await require('../api/config')({headers:{},method:'GET'},r);assert.ok(!JSON.stringify(r.body).includes('never_expose_this'));}finally{if(previous===undefined)delete process.env.SUPABASE_SERVICE_ROLE_KEY;else process.env.SUPABASE_SERVICE_ROLE_KEY=previous;}
 });
+
+test('ranking and question routes require login before reading the bank',async()=>{
+ for(const route of ['leaderboard','quiz']){
+  const r=response();await require('../api/'+route)({headers:{},method:'GET',query:{}},r);assert.equal(r.code,401);
+ }
+});

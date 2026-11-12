@@ -32,7 +32,7 @@ Referências oficiais: [Auth](https://supabase.com/docs/guides/auth), [RLS](http
 3. Cadastre essa URL com `/` na lista permitida de redirecionamentos. Para desenvolvimento, adicione `http://localhost:3000/`. Adicione URLs de preview específicas somente quando for testar nelas.
 4. Configure um serviço SMTP para envio de e-mails de produção e teste um cadastro real e um link de recuperação.
 5. No aplicativo, clique em Entrar / Criar conta, confirme o e-mail e entre. Para recuperar acesso, informe o e-mail e clique em Recuperar senha. Ao abrir o link recebido, informe a nova senha em Minha conta e clique em Atualizar senha.
-6. O usuário escolhe seu nome público em Minha conta. A participação no ranking vem desativada e depende da opção explícita do usuário.
+6. O usuário escolhe seu nome público em Minha conta. A participação no ranking é obrigatória para todas as contas. Essa regra é informada na tela inicial de acesso.
 
 ## 4. Configurar Vercel
 
@@ -116,7 +116,7 @@ Nenhum quiz público pode impedir consulta externa às respostas, automação ou
 3. Como A, jogue uma partida. Confira uma sessão, 10 respostas, XP e medalhas. Reenvie uma resposta pelo painel de rede: a pontuação não deve duplicar.
 4. Entre como A em outro navegador. Confira os mesmos dados.
 5. Como B, verifique que não vê dados privados de A. Um pedido ao Supabase com token de B não deve ler registros de A. Escritas diretas em progresso, sessões e respostas devem ser negadas.
-6. Escolha nome público e habilite ranking de A; confira geral e semanal. Desabilite a opção e confira a remoção do ranking.
+6. Escolha o nome público de A e confira sua participação automática nos rankings geral e semanal. Uma atualização com listed=false deve ser rejeitada após a segunda migração.
 7. Simule falta de rede durante a prática local. Conclua, reconecte e sincronize duas vezes; confira que só uma partida foi registrada.
 8. Importe o mesmo progresso antigo duas vezes e confira que os totais não duplicam.
 9. Tente inserir duas questões com diferenças triviais de acentuação/pontuação ao mesmo tempo; apenas uma deve ser aceita. Revise possíveis semelhantes em `candidate`.
@@ -147,3 +147,11 @@ Problemas comuns: confira APP_ORIGIN exato para erro de origem; confirme todas a
 Arquivos principais: `cloud.js` integra Auth e fila; `api/account.js`, `api/game.js`, `api/leaderboard.js`, `api/config.js` e `api/admin-questions.js` expõem as rotas; `lib/` contém acesso ao banco, catálogo e validação; `supabase/migrations/` cria o banco; `scripts/stock.js` opera o acervo. `app.js`, `index.html`, `style.css`, `sw.js` e `vercel.json` foram adaptados. `.env.example`, README e este guia documentam a ativação. O `.env` existente não foi alterado.
 
 O orçamento `GENERATION_DAILY_BATCHES` limita lotes administrativos iniciados, não tokens nem custo monetário. Um lote pode fazer duas tentativas, e cada tentativa pode percorrer os provedores configurados. Ajuste a cota e os limites nos provedores de acordo com seu orçamento. O fallback `ALLOW_AI_DB_FALLBACK`, se habilitado deliberadamente, fica fora desse orçamento de lotes administrativos; mantenha desativado até definir limites apropriados na sua infraestrutura.
+
+## Atualização: login inicial e ranking obrigatório
+
+O aplicativo agora abre em uma página de login. Jogo, progresso e ranking exigem uma conta autenticada. Uma sessão válida já salva permite continuar sem digitar a senha novamente; ao sair ou expirar a sessão, a tela inicial de acesso volta. A prática offline depende de entrar na conta primeiro. As APIs de questões e ranking também exigem token válido.
+
+Quem já executou a primeira migração deve executar **somente** `supabase/migrations/202611120002_required_ranking.sql` no SQL Editor. Ela ativa o ranking nos perfis existentes, define o padrão para novas contas e impede gravar `listed=false`. Não execute novamente a primeira migração. O código passa a ativar o ranking também ao carregar uma conta antiga, para compatibilidade durante a atualização. O critério de pontos continua usando apenas partidas online concluídas e validadas; prática e histórico importado ficam privados.
+
+A nova regra substitui as referências antigas deste guia a acesso de visitantes ou participação opcional. O fluxo de entrada oferece login, cadastro e recuperação de senha; a informação de ranking obrigatório fica visível antes de criar a conta. Somente nome público e métricas de jogo são compartilhados. Teste também abrir uma janela anônima: o conteúdo de estudo deve ficar bloqueado até entrar. Ao sair, o aplicativo deve voltar ao login imediatamente.

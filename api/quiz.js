@@ -197,6 +197,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   try {
+    if (req.headers) await require('../lib/backend').user(req);
     const { difficulty, topic } = req.query;
     let count = parseInt(req.query.count, 10);
     if (!Number.isFinite(count) || count <= 0) count = 10;
@@ -228,7 +229,7 @@ module.exports = async function handler(req, res) {
     console.error('Erro na API:', err);
     const isRateLimit = err.allRateLimited === true;
 
-    return res.status(isRateLimit ? 429 : 500).json({
+    return res.status(err.status === 401 ? 401 : isRateLimit ? 429 : 500).json({
       error: isRateLimit ? 'rate_limit' : 'Erro na geração',
       details: isRateLimit
         ? 'Limite diário de requisições atingido. Tente novamente mais tarde.'

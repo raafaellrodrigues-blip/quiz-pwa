@@ -13,6 +13,8 @@ test('Postgres migrations, RLS, deduplication, scoring, retry and private import
  grant usage on schema auth to authenticated;grant execute on function auth.uid() to authenticated;`);
  for(const file of fs.readdirSync('supabase/migrations').sort())await pg.exec(fs.readFileSync('supabase/migrations/'+file,'utf8').replace(/^\uFEFF/,''));
  await pg.query('insert into auth.users values ($1),($2)',[A,B]);
+ assert.equal((await pg.query('select listed from profiles where user_id=$1',[A])).rows[0].listed,true);
+ await assert.rejects(pg.query('update profiles set listed=false where user_id=$1',[A]),/profiles_ranking_required/);
  const add=(stem)=>pg.query(`insert into questions(topic,difficulty,question,options,correct,explanation,source,status,normalized,canonical_hash,signature)values('Matemática','medio',$1,'["Dois","Três","Quatro","Cinco"]',0,'Explicação correta','ai','reviewed','','','') returning id`,[stem]);
  await add('Questão única: ação?');
  await assert.rejects(add('QUESTAO unica acao!'),/duplicate key/);

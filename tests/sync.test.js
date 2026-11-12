@@ -9,16 +9,17 @@ test('service worker bypasses private APIs, external auth and non-GET requests',
 test('browser session restores account scope and retains offline events until server confirmation',async()=>{
  const map=new Map([['raciocine_session_v1',JSON.stringify({access_token:'public-user-jwt',refresh_token:'refresh',expires_at:Date.now()/1000+3600,user:{id:'user-A'}})],['quizia_stats_v2',JSON.stringify({totalXP:999})]]);
  const storage={getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,v),removeItem:k=>map.delete(k),key:i=>[...map.keys()][i],get length(){return map.size;}};
- const elements=new Map();const el=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:false,textContent:'',classList:{contains:()=>false}});return elements.get(id);};
+ const elements=new Map();const el=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:false,textContent:'',addEventListener(){},classList:{contains:()=>false}});return elements.get(id);};
  let offline=false,writes=0;
  const data={stats:{totalXP:40,totalGames:1},history:[],streak:{streak:1},badges:[],profile:{public_name:'Jogador',listed:false},imported:false};
  const context={window:{addEventListener(){}},document:{getElementById:el,querySelectorAll:()=>[]},localStorage:storage,console,G:{correct:5,score:75,localId:'id-1',mode:'estudo',topic:'Matemática'},CONFIG:{},computeLevel:()=>0,loadHomeStats(){},navigator:{onLine:true},location:{hash:'',origin:'https://quiz.example'},URLSearchParams,
  fetch:async(path,init)=>{
   if(path==='/api/config')return {json:async()=>({enabled:true,url:'https://auth.example',key:'anon'})};
+  if(path==='https://auth.example/auth/v1/user')return {ok:true,json:async()=>({id:'user-A'})};
   assert.equal(init.headers.Authorization,'Bearer public-user-jwt');
   if(init.method==='POST'){if(offline)throw new Error('offline');writes++;}
   return {ok:true,json:async()=>data};
- }};
+ },showScreen(){},goHome(){}};
  context.getStats=()=>JSON.parse(storage.getItem('quizia_stats_v2_'+(context.window.Cloud?.userId||''))||'{}');
  vm.createContext(context);vm.runInContext(fs.readFileSync('cloud.js','utf8'),context);context.Cloud=context.window.Cloud;
  await context.Cloud.init();assert.equal(context.Cloud.userId,'user-A');assert.equal(context.G.xp,40);assert.equal(JSON.parse(storage.getItem('quizia_stats_v2')).totalXP,999);
@@ -26,4 +27,19 @@ test('browser session restores account scope and retains offline events until se
  assert.ok(storage.getItem('raciocine_event_user-A_id-1'));assert.match(el('account-status').textContent,/pendente/);
  offline=false;await context.Cloud.sync();assert.equal(storage.getItem('raciocine_event_user-A_id-1'),null);assert.equal(writes,1);
  await context.Cloud.sync();assert.equal(writes,1);assert.match(el('account-status').textContent,/Sincronizado/);
+});
+
+test('anonymous visitors see login first and cannot start a game',async()=>{
+ const elements=new Map(),screens=[];const el=id=>{if(!elements.has(id))elements.set(id,{value:'',hidden:false,textContent:'',addEventListener(){},classList:{contains:()=>false}});return elements.get(id);};
+ const context={window:{addEventListener(){}},document:{getElementById:el,querySelectorAll:()=>[],body:{classList:{toggle:(name,locked)=>{context.locked=locked;}}}},localStorage:{getItem:()=>null,removeItem(){}},G:{},CONFIG:{},getStats:()=>({}),computeLevel:()=>0,URLSearchParams,location:{hash:''},showScreen:name=>screens.push(name),fetch:async()=>({json:async()=>({enabled:true})})};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('cloud.js','utf8'),context);context.Cloud=context.window.Cloud;
+ await context.Cloud.init();assert.equal(context.Cloud.authenticated,false);assert.equal(context.locked,true);assert.equal(el('screen-auth').hidden,false);assert.deepEqual(screens,['auth']);
+ await assert.rejects(context.Cloud.start('Matemática','medio','estudo'),/Entre na sua conta/);
+});
+
+test('navigation and direct game calls cannot bypass login gate',async()=>{
+ const active=[];const context={window:{Cloud:{authenticated:false},addEventListener(){}},document:{querySelectorAll:()=>[],getElementById:id=>({classList:{add:()=>active.push(id)}})},console};
+ vm.createContext(context);vm.runInContext(fs.readFileSync('app.js','utf8'),context);
+ vm.runInContext("showScreen('progress')",context);await vm.runInContext('startGame()',context);
+ assert.deepEqual(active,['screen-auth','screen-auth']);
 });
