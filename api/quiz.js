@@ -163,7 +163,15 @@ async function generateWithFallback(difficulty, topic, count, existingStems = []
       payload.response_format = { type: 'json_object' };
       if (provider.name.startsWith('openrouter')) payload.provider = { require_parameters:true };
 
-      const response = await provider.client.chat.completions.create(payload);
+      let response;
+      try{response=await provider.client.chat.completions.create(payload);}
+      catch(e){
+        const seconds=Number(e.headers?.['retry-after'])||Number(/try again in ([\d.]+)s/i.exec(e.message||'')?.[1]);
+        if(e.status!==429||!Number.isFinite(seconds)||seconds<=0||seconds>12)throw e;
+        console.log('Aguardando limite por minuto do provedor: '+provider.name);
+        await new Promise(resolve=>setTimeout(resolve,Math.ceil(seconds*1000)+100));
+        response=await provider.client.chat.completions.create(payload);
+      }
       const choice = response.choices?.[0];
       if (choice?.finish_reason === 'length') {
         throw new Error('A resposta da IA foi cortada antes de completar as questões');
