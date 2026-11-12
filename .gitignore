@@ -21,3 +21,6 @@ build/
 
 .vercel
 .env*.local
+
+# Relatórios operacionais locais de carga
+artifacts/

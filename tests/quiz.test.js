@@ -29,6 +29,8 @@ test('404 on first provider falls back to free router and returns all ten questi
   assert.equal(res.code, 200);
   assert.equal(res.body.questions.length, 10);
   assert.equal(calls[1].payload.model, 'openrouter/free');
+  assert.equal(calls[1].payload.response_format.type, 'json_object');
+  assert.equal(calls[1].payload.provider.require_parameters, true);
   assert.equal(calls[1].payload.max_tokens, 5000);
   assert.equal(calls[0].config.maxRetries, 0);
 });

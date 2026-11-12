@@ -161,3 +161,22 @@ A nova regra substitui as referências antigas deste guia a acesso de visitantes
 O avanço de questão agora é bloqueado durante a transição, impedindo que clique repetido ou sobreposição do avanço automático pule uma pergunta. Quando uma resposta falha, a escolha original fica disponível para reenvio pelo botão de tentativa. Uma resposta já gravada é recuperada sem conceder pontos novamente.
 
 A página inicial mostra **Retomar partida** quando há uma sessão online incompleta das últimas 24 horas. A retomada usa o número de respostas confirmadas no banco, restaura o placar e os combos e reabre a primeira questão pendente. Essa funcionalidade substitui a limitação anterior sobre recarregar partidas em andamento. Não é necessária nova migração SQL para esta correção.
+
+## Carga contínua por tema e dificuldade (10 lotes por dia)
+
+A cota escolhida nesta configuração permanece em **10 lotes por dia**, sem aumento automático. O carregador prioriza combinações com menos questões, formando primeiro partidas de 10 perguntas. Ao repetir a execução, o estoque real decide a próxima combinação; não é necessário controlar manualmente o tema onde parou. Questões candidatas a duplicidade não contam para liberar uma faixa.
+
+```powershell
+# Consultar estoque, cobertura de partidas e saldo diário
+node --env-file=.env scripts/stock.js inventory
+# Simular a seleção dos próximos 10 lotes
+node --env-file=.env scripts/stock.js fill --batches=10 --count=10
+# Executar até o saldo diário disponível, com no máximo 10 questões por lote
+node --env-file=.env scripts/stock.js fill --apply --batches=10 --count=10
+```
+
+Para limitar uma etapa à cobertura inicial de 10 questões por combinação, acrescente `--target=10`. Sem isso, a meta é 100 em cada dificuldade. A execução para ao terminar a cota e salva `artifacts/stock-report.json`, com estoque por tema/dificuldade, inserções, duplicatas, candidatos e motivo da parada. Os relatórios são locais e não entram no Git. O comando não cria um agendamento: para continuar em outro dia, execute-o novamente. Não há rotina autônoma rodando após encerrar o processo.
+
+A cota utiliza o dia do banco (UTC na configuração padrão do Supabase), não uma janela móvel de 24 horas. Falhas de geração também consomem uma reserva. Com 42 temas e 3 dificuldades, a meta final é de 12.600 questões; 10 lotes de até 10 itens permitem no máximo 100 inserções por dia, antes de falhas e duplicatas. Essa meta será preenchida gradualmente, não numa carga única.
+
+A geração solicita JSON e limita o OpenRouter a provedores compatíveis com o formato, seguindo a [documentação de roteamento](https://openrouter.ai/docs/guides/routing/provider-selection#requiring-providers-to-support-all-parameters). O modelo padrão da Groq foi ajustado para um modelo do [catálogo oficial](https://console.groq.com/docs/models); a variável `GROQ_MODEL` continua permitindo configuração explícita. A validação automática de formato não equivale a revisão pedagógica ou confirmação de todas as informações do gabarito.
