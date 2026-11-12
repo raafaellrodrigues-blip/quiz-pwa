@@ -6,7 +6,7 @@ const source = fs.readFileSync(require.resolve('../api/quiz'), 'utf8');
 const questions = Array.from({ length: 10 }, (_, i) => ({
   question: `Pergunta ${i}`, options: ['She will study tomorrow.', 'She studied yesterday.', 'She is studying now.', 'She studies every day.'], correct: 0, explanation: 'Explicação'
 }));
-async function run(replies, env = { GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY: 'test' }) {
+async function run(replies, env = { GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY: 'test' }, count = 10) {
   const calls = [];
   class OpenAI {
     constructor(config) {
@@ -21,7 +21,7 @@ async function run(replies, env = { GROQ_API_KEY: 'gsk_test', OPENROUTER_API_KEY
   const context = { require: name => name === 'openai' ? OpenAI : require('../question-validation'), process: { env }, module: { exports: {} }, console: { log() {}, warn() {}, error() {} } };
   vm.runInNewContext(source, context);
   const res = { setHeader() {}, status(code) { this.code = code; return this; }, json(body) { this.body = body; return this; } };
-  await context.module.exports({ method: 'GET', query: { count: '10' } }, res);
+  await context.module.exports({ method: 'GET', query: { count: String(count) } }, res);
   return { calls, res };
 }
 test('404 on first provider falls back to free router and returns all ten questions', async () => {
@@ -63,4 +63,9 @@ test('letter-only options trigger fallback instead of being returned as answers'
   assert.equal(calls.length, 2);
   assert.equal(res.body.questions[0].options[0], 'She will study tomorrow.');
   assert.ok(!calls[0].payload.messages[0].content.includes('["A", "B", "C", "D"]'));
+});
+
+test('small batches reserve enough output for reasoning models and JSON',async()=>{
+ const {calls,res}=await run([{message:{content:JSON.stringify({questions:questions.slice(0,4)})}}],{GROQ_API_KEY:'gsk_test'},4);
+ assert.equal(res.code,200);assert.equal(calls[0].payload.max_tokens,4000);assert.equal(calls[0].payload.reasoning_effort,'low');
 });
