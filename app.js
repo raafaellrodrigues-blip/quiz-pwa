@@ -1,3 +1,4 @@
+function progressKey(key) { return window.Cloud?.userId ? key + '_' + window.Cloud.userId : key; }
 /* =============================================
    QUIZ IA — app.js  v4.1 (Otimizado Parallel Fetch)
    ============================================= */
@@ -138,7 +139,7 @@ function showLastTopicSuggestion() {
     if (!last) return;
     const el = document.getElementById('last-topic-hint');
     if (!el) return;
-    el.innerHTML = 'Continuar em <strong>' + last.icon + ' ' + last.label + '</strong>?';
+    el.innerHTML = 'Continuar em <strong>' + escapeProgressText(last.icon) + ' ' + escapeProgressText(last.label) + '</strong>?';
     el.style.display = 'flex';
     el.onclick = () => {
       if (window.selectTopic) window.selectTopic(last.icon, last.label, last.key);
@@ -237,7 +238,10 @@ async function startGame() {
 
     try { localStorage.setItem(CONFIG.LAST_TOPIC_KEY, JSON.stringify(topicObj)); } catch(e) {}
 
-    const qs = await fetchQuestions(G.difficulty, tema);
+    const online = await window.Cloud?.start(tema, G.difficulty, G.mode);
+    const qs = online ? online.questions.map(q => ({...q, correct:-2, explanation:''})) : await fetchQuestions(G.difficulty, tema);
+    G.onlineId = online?.id || null;
+    G.localId = crypto.randomUUID(); G.topic = tema; G.completed = false;
     Object.assign(G, {
       questions: qs, idx: 0, score: 0, combo: 0,
       maxCombo: 0, correct: 0, answered: false,
@@ -249,6 +253,7 @@ async function startGame() {
   } catch (err) {
     console.error(err);
     hideSkeletonLoading(label, hint);
+    hint.textContent = err.message;
     if (err.status === 429 || err.code === 'rate_limit') {
       hint.textContent  = '⏳ Limite diário de gerações atingido. Tente novamente mais tarde.';
       label.textContent = 'Indisponível por hoje';
@@ -322,7 +327,11 @@ async function requestQuestionsFromAPI(diff, tema, count) {
   }
 
   const data = await res.json();
-  return data.questions || [];
+  if (!Array.isArray(data.questions) || data.questions.length === 0 ||
+      !data.questions.every(isValidQuestion)) {
+    throw new Error('A IA retornou alternativas incompletas. Tente gerar novamente.');
+  }
+  return data.questions;
 }
 
 async function fetchQuestions(diff, tema) {
@@ -330,7 +339,9 @@ async function fetchQuestions(diff, tema) {
   const poolKey = CONFIG.CACHE_KEY + '_' + diff + '_' + tema;
   const usedKey = poolKey + '_used';
 
-  let pool = getCached(poolKey) || [];
+  const cachedPool = getCached(poolKey);
+  let pool = Array.isArray(cachedPool) ? cachedPool.filter(isValidQuestion) : [];
+  if (Array.isArray(cachedPool) && pool.length !== cachedPool.length) setCache(poolKey, pool);
   let used = new Set(getCached(usedKey) || []);
   let unused = pool.filter(q => !used.has(questionHash(q)));
 
@@ -392,7 +403,7 @@ function setCache(key, data) {
 }
 
 // ── RENDER QUESTÃO ────────────────────────────
-function renderQuestion() {
+async function renderQuestion() {
   const q = G.questions[G.idx];
   if (!q) { showResults(); return; }
 
@@ -432,11 +443,17 @@ function renderQuestion() {
   ['A','B','C','D'].forEach((letter, i) => {
     const btn = document.createElement('button');
     btn.className = 'option-btn';
-    btn.innerHTML = '<span class="opt-letter">' + letter + '</span><span class="opt-text">' + (q.options[i] || '') + '</span>';
+    btn.innerHTML = '<span class="opt-letter">' + letter + '</span><span class="opt-text">' + escapeProgressText(q.options[i] || '') + '</span>';
     btn.addEventListener('click', () => selectAnswer(i));
     list.appendChild(btn);
   });
 
+  if (G.onlineId) {
+    G.sendingAnswer = true;
+    try { await Cloud.present(G.idx); }
+    catch(e) { document.getElementById('q-text').textContent += ' — Sem conexão. Toque em uma alternativa para tentar responder.'; }
+    finally { G.sendingAnswer = false; }
+  }
   const tw = document.getElementById('timer-wrap');
   if (G.mode === 'rapido' || G.mode === 'desafio') {
     const timerSecs = G.mode === 'desafio' ? CONFIG.CHALLENGE_SECONDS : CONFIG.TIMER_SECONDS;
@@ -477,8 +494,23 @@ function updateRing(cur, total) {
 }
 
 // ── RESPOSTA ──────────────────────────────────
-function selectAnswer(idx) {
-  if (G.answered) return;
+async function selectAnswer(idx) {
+  if (G.answered || G.sendingAnswer) return;
+  if (G.onlineId) {
+    G.sendingAnswer = true;
+    if (G.timer) clearInterval(G.timer);
+    try {
+      await Cloud.present(G.idx);
+      const reply = await Cloud.answer(G.idx, idx);
+      G.questions[G.idx].correct = reply.correct;
+      G.questions[G.idx].explanation = reply.explanation;
+      idx = reply.answer;
+    } catch(e) {
+      const next = document.getElementById("btn-next");
+      next.style.display="flex"; next.textContent="Falha ao salvar resposta. Toque em uma alternativa para tentar novamente.";
+      return;
+    } finally { G.sendingAnswer = false; }
+  }
   G.answered = true;
   if (G.timer) clearInterval(G.timer);
 
@@ -541,6 +573,7 @@ function selectAnswer(idx) {
 
 function autoTimeout() {
   if (G.answered) return;
+  if (G.onlineId) { selectAnswer(-1); return; }
   G.answered = true;
   const q = G.questions[G.idx];
   document.querySelectorAll('.option-btn').forEach((b, i) => {
@@ -564,10 +597,10 @@ function showExplanation(ok, text, correctOption, timeout) {
   box.innerHTML =
     '<div class="exp-header">' +
       '<span class="exp-status" style="color:' + color + '">' + icon + ' ' + label + '</span>' +
-      (!ok && !timeout ? '<span class="exp-correct-lbl">Resposta certa: <strong>' + correctOption + '</strong></span>' : '') +
+      (!ok && !timeout ? '<span class="exp-correct-lbl">Resposta certa: <strong>' + escapeProgressText(correctOption) + '</strong></span>' : '') +
     '</div>' +
-    '<p class="exp-headline">' + headline + '</p>' +
-    (detail ? '<p class="exp-detail">' + detail + '</p>' : '');
+    '<p class="exp-headline">' + escapeProgressText(headline) + '</p>' +
+    (detail ? '<p class="exp-detail">' + escapeProgressText(detail) + '</p>' : '');
   box.style.display = 'block';
 }
 
@@ -643,6 +676,7 @@ function showComboToast(combo, pts) {
 
 // ── PRÓXIMA QUESTÃO ───────────────────────────
 function nextQuestion() {
+  if (G.onlineId && (!G.answered || G.sendingAnswer)) return;
   if (G.autoNextTimer) { clearTimeout(G.autoNextTimer); G.autoNextTimer = null; }
   if (G.autoNextTick)  { clearInterval(G.autoNextTick); G.autoNextTick = null; }
   G.idx++;
@@ -668,6 +702,7 @@ function nextQuestion() {
 
 // ── RESULTADOS ────────────────────────────────
 function showResults() {
+  if (G.completed) return; G.completed = true;
   const pct = Math.round((G.correct / CONFIG.TOTAL_QUESTIONS) * 100);
   G.xp   += CONFIG.XP_PER_GAME;
   G.level = computeLevel(G.xp);
@@ -702,6 +737,7 @@ function showResults() {
 
   saveScore(G.score, G.mode, pct);
   saveStats(G.correct, CONFIG.TOTAL_QUESTIONS, G.score, G.xp);
+  window.Cloud?.complete();
   syncDiffPillsUI();
   showScreen('result');
 
@@ -737,24 +773,24 @@ function computeLevel(xp) {
 // ── STREAKS ───────────────────────────────────
 function updateStreak() {
   try {
-    const s = JSON.parse(localStorage.getItem(CONFIG.STREAK_KEY)) || { streak: 0, lastDate: null };
+    const s = JSON.parse(localStorage.getItem(progressKey(CONFIG.STREAK_KEY))) || { streak: 0, lastDate: null };
     const today     = new Date().toDateString();
     const yesterday = new Date(Date.now() - 86400000).toDateString();
     if (s.lastDate === today) return;
     s.streak = (s.lastDate === yesterday) ? (s.streak || 0) + 1 : 1;
     s.lastDate = today;
-    localStorage.setItem(CONFIG.STREAK_KEY, JSON.stringify(s));
+    localStorage.setItem(progressKey(CONFIG.STREAK_KEY), JSON.stringify(s));
   } catch(e) { console.warn('streak err', e); }
 }
 
 function getStreak() {
-  try { return JSON.parse(localStorage.getItem(CONFIG.STREAK_KEY))?.streak || 0; }
+  try { return JSON.parse(localStorage.getItem(progressKey(CONFIG.STREAK_KEY)))?.streak || 0; }
   catch { return 0; }
 }
 
 // ── MEDALHAS POR CATEGORIA ────────────────────
 function checkCategoryBadges(tema, correct, pct) {
-  const earned = JSON.parse(localStorage.getItem(CONFIG.BADGES_KEY) || '[]');
+  const earned = JSON.parse(localStorage.getItem(progressKey(CONFIG.BADGES_KEY)) || '[]');
   const newOnes = [];
   CONFIG.CATEGORY_BADGES.forEach(b => {
     if (earned.includes(b.id)) return;
@@ -763,26 +799,26 @@ function checkCategoryBadges(tema, correct, pct) {
                     : b.topics.includes(tema) && correct >= b.threshold;
     if (qualifies) { earned.push(b.id); newOnes.push(b.label); }
   });
-  if (newOnes.length) localStorage.setItem(CONFIG.BADGES_KEY, JSON.stringify(earned));
+  if (newOnes.length) localStorage.setItem(progressKey(CONFIG.BADGES_KEY), JSON.stringify(earned));
   return newOnes;
 }
 
 function getAllBadges() {
-  const earned = JSON.parse(localStorage.getItem(CONFIG.BADGES_KEY) || '[]');
+  const earned = JSON.parse(localStorage.getItem(progressKey(CONFIG.BADGES_KEY)) || '[]');
   return CONFIG.CATEGORY_BADGES.map(b => ({ ...b, earned: earned.includes(b.id) }));
 }
 
 // ── HISTÓRICO LOCAL ───────────────────────────
 function saveHistory(entry) {
   try {
-    const h = JSON.parse(localStorage.getItem(CONFIG.HISTORY_KEY) || '[]');
+    const h = JSON.parse(localStorage.getItem(progressKey(CONFIG.HISTORY_KEY)) || '[]');
     h.unshift(entry);
-    localStorage.setItem(CONFIG.HISTORY_KEY, JSON.stringify(h.slice(0, 50)));
+    localStorage.setItem(progressKey(CONFIG.HISTORY_KEY), JSON.stringify(h.slice(0, 50)));
   } catch(e) { console.warn('history err', e); }
 }
 
 function getHistory() {
-  try { return JSON.parse(localStorage.getItem(CONFIG.HISTORY_KEY)) || []; }
+  try { return JSON.parse(localStorage.getItem(progressKey(CONFIG.HISTORY_KEY))) || []; }
   catch { return []; }
 }
 
@@ -791,8 +827,7 @@ function showProgress() {
   const badges  = getAllBadges();
   const streak  = getStreak();
 
-  const streakEl = document.getElementById('progress-streak');
-  if (streakEl) streakEl.textContent = streak + ' dia' + (streak !== 1 ? 's' : '') + ' seguidos 🔥';
+  renderProgressDashboard(history, badges, streak);
 
   const badgeList = document.getElementById('progress-badges');
   if (badgeList) {
@@ -801,7 +836,7 @@ function showProgress() {
     ).join('');
   }
 
-  const byTema = {};
+  const byTema = Object.create(null);
   history.forEach(e => {
     if (!byTema[e.tema]) byTema[e.tema] = { total: 0, correct: 0 };
     byTema[e.tema].total   += e.total;
@@ -815,7 +850,7 @@ function showProgress() {
     if (sorted.length) {
       chartEl.innerHTML = sorted.map(item =>
         '<div class="chart-row">' +
-          '<span class="chart-label">' + item.tema + '</span>' +
+          '<span class="chart-label">' + escapeProgressText(item.tema || 'Aleatório') + '</span>' +
           '<div class="chart-bar-wrap"><div class="chart-bar ' + (item.pct >= 70 ? 'good' : item.pct >= 40 ? 'ok' : 'bad') + '" style="width:' + item.pct + '%"></div></div>' +
           '<span class="chart-pct">' + item.pct + '%</span>' +
         '</div>'
@@ -832,8 +867,8 @@ function showProgress() {
       ? history.map(e =>
           '<div class="history-row">' +
             '<div class="history-meta">' +
-              '<span class="history-date">' + e.date + '</span>' +
-              '<span class="history-tema">' + (e.tema || 'Aleatório') + '</span>' +
+              '<span class="history-date">' + escapeProgressText(e.date) + '</span>' +
+              '<span class="history-tema">' + escapeProgressText(e.tema || 'Aleatório') + '</span>' +
             '</div>' +
             '<div class="history-stats">' +
               '<span class="history-correct">' + e.correct + '/' + e.total + '</span>' +
@@ -846,18 +881,89 @@ function showProgress() {
   showScreen('progress');
 }
 
+function escapeProgressText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function getProgressSummary(stats) {
+  const xp = Math.max(0, Number(stats.totalXP) || 0);
+  const level = computeLevel(xp);
+  const current = CONFIG.LEVELS[level];
+  const next = CONFIG.LEVELS[level + 1];
+  const answered = Math.max(0, Number(stats.totalAnswered) || 0);
+  const correct = Math.max(0, Number(stats.totalCorrect) || 0);
+  return {
+    xp, level: current.name, nextLevel: next?.name,
+    nextXP: next?.min, levelPct: next ? Math.min(100, Math.round((xp - current.min) / (next.min - current.min) * 100)) : 100,
+    answered, correct, accuracy: answered ? Math.min(100, Math.round(correct / answered * 100)) : 0,
+    games: Math.max(0, Number(stats.totalGames) || 0), best: Math.max(0, Number(stats.bestScore) || 0),
+  };
+}
+
+function renderProgressDashboard(history, badges, streak) {
+  const s = getProgressSummary(getStats());
+  const set = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  const number = value => value.toLocaleString('pt-BR');
+  set('pd-games', number(s.games));
+  set('pd-answered', number(s.answered));
+  set('pd-best', number(s.best) + ' pts');
+  set('pd-xp', number(s.xp) + ' XP');
+  set('pd-level', s.level);
+  set('pd-level-caption', s.nextXP ? number(s.xp) + ' / ' + number(s.nextXP) + ' XP' : 'Nível máximo alcançado');
+  document.getElementById('pd-level-fill').style.width = s.levelPct + '%';
+  set('pd-welcome', s.nextXP ? 'Faltam ' + number(s.nextXP - s.xp) + ' XP para chegar ao nível ' + s.nextLevel + '.' : 'Você chegou ao topo. Continue ampliando seu conhecimento.');
+  set('pd-accuracy', s.answered ? s.accuracy + '%' : '—');
+  document.getElementById('pd-accuracy-ring').setAttribute('stroke-dasharray', s.accuracy + ' 100');
+  set('pd-correct-caption', s.answered ? number(s.correct) + ' acertos em ' + number(s.answered) + ' questões' : 'Nenhuma questão respondida');
+  const streakCount = document.getElementById('pd-streak-count');
+  streakCount.innerHTML = number(streak) + '<span>' + (streak === 1 ? 'dia' : 'dias') + '</span>';
+  set('progress-streak', 'Sua ofensiva atual');
+  set('pd-streak-caption', streak >= 7 ? 'Sete dias superados. Continue sua sequência!' : streak ? 'Faltam ' + (7 - streak) + ' dias para a meta de 7.' : 'Um dia de cada vez. Vamos começar?');
+  document.getElementById('pd-streak-milestones').innerHTML = Array.from({ length: 7 }, (_, i) => '<span class="' + (streak > i ? 'reached' : '') + '" aria-label="Dia ' + (i + 1) + (streak > i ? ' alcançado' : ' pendente') + '">' + (i + 1) + '</span>').join('');
+  set('pd-badge-count', badges.filter(b => b.earned).length + ' / ' + badges.length);
+  set('pd-history-count', history.length + (history.length === 1 ? ' partida' : ' partidas'));
+  document.getElementById('pd-topics-empty').hidden = history.length > 0;
+  renderProgressTrend(history, Number(document.getElementById('pd-trend-period').value) || 12);
+}
+
+function renderProgressTrend(history, limit = 12) {
+  const el = document.getElementById('pd-trend');
+  if (!el) return;
+  const recent = history.slice(0, limit).reverse();
+  if (!recent.length) {
+    el.innerHTML = '<div class="dashboard-empty trend-empty"><span aria-hidden="true">↗</span><strong>Sua evolução começa aqui</strong><p>Complete uma partida para ver seus resultados neste gráfico.</p><button class="btn-outline" onclick="goHome()">Começar a praticar</button></div>';
+    return;
+  }
+  const points = recent.map((entry, i) => {
+    const pct = entry.total ? Math.max(0, Math.min(100, Math.round(entry.correct / entry.total * 100))) : 0;
+    return { x: recent.length === 1 ? 320 : 42 + i * 548 / (recent.length - 1), y: 175 - pct * 1.4, pct, entry };
+  });
+  const line = points.map((p, i) => (i ? 'L' : 'M') + p.x.toFixed(1) + ',' + p.y.toFixed(1)).join(' ');
+  const grid = [0, 25, 50, 75, 100].map(pct => '<line x1="42" x2="590" y1="' + (175 - pct * 1.4) + '" y2="' + (175 - pct * 1.4) + '" class="trend-grid"/><text x="30" y="' + (179 - pct * 1.4) + '" text-anchor="end" class="trend-axis">' + pct + '%</text>').join('');
+  const dots = points.map(p => '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="4" class="trend-dot"><title>' + escapeProgressText(p.entry.date + ' · ' + (p.entry.tema || 'Aleatório') + ' · ' + p.pct + '%') + '</title></circle>').join('');
+  const labels = points.filter((p, i) => i === 0 || i === points.length - 1 || (points.length > 4 && i === Math.floor(points.length / 2))).map(p => '<text x="' + p.x.toFixed(1) + '" y="202" text-anchor="middle" class="trend-axis">' + escapeProgressText(p.entry.date) + '</text>').join('');
+  const last = points[points.length - 1];
+  el.innerHTML = '<div class="trend-summary"><strong>' + last.pct + '<span>%</span></strong><span>na última partida</span><span class="trend-key"><i></i> Acertos</span></div>' +
+    '<svg viewBox="0 0 620 220" role="img" aria-label="Precisão nas últimas ' + recent.length + ' partidas"><title>Evolução dos acertos</title><desc>' + points.map(p => escapeProgressText(p.entry.date + ': ' + p.pct + '%')).join('; ') + '</desc><defs><linearGradient id="progress-area-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#399bff" stop-opacity=".4"/><stop offset="100%" stop-color="#399bff" stop-opacity="0"/></linearGradient><linearGradient id="progress-line-stroke"><stop stop-color="#32c7ee"/><stop offset="100%" stop-color="#4c82ff"/></linearGradient></defs>' + grid +
+    (points.length > 1 ? '<path d="' + line + ' L590,175 L42,175 Z" fill="url(#progress-area-fill)"/><path d="' + line + '" fill="none" stroke="url(#progress-line-stroke)" stroke-width="3" stroke-linejoin="round"/>' : '') + dots + labels + '</svg>';
+}
+
 // ── LEADERBOARD ───────────────────────────────
 function saveScore(score, mode, acc) {
   const lb = getLeaderboard();
   lb.push({ score, mode, acc, date: new Date().toLocaleDateString('pt-BR') });
   lb.sort((a, b) => b.score - a.score);
-  localStorage.setItem(CONFIG.LEADERBOARD_KEY, JSON.stringify(lb.slice(0, 20)));
+  localStorage.setItem(progressKey(CONFIG.LEADERBOARD_KEY), JSON.stringify(lb.slice(0, 20)));
 }
 function getLeaderboard() {
-  try { return JSON.parse(localStorage.getItem(CONFIG.LEADERBOARD_KEY)) || []; }
+  try { return JSON.parse(localStorage.getItem(progressKey(CONFIG.LEADERBOARD_KEY))) || []; }
   catch { return []; }
 }
 function showLeaderboard() {
+  if (window.Cloud?.enabled) { showScreen('leaderboard'); Cloud.ranking(document.getElementById('ranking-period').value); return; }
+  showLocalLeaderboard();
+}
+function showLocalLeaderboard() {
   const lb     = getLeaderboard();
   const list   = document.getElementById('lb-list');
   const medals = ['gold','silver','bronze'];
@@ -886,10 +992,10 @@ function saveStats(correct, total, score, xp) {
   s.totalAnswered = (s.totalAnswered||0) + total;
   s.bestScore     = Math.max(s.bestScore||0, score);
   s.totalXP       = xp;
-  localStorage.setItem(CONFIG.STATS_KEY, JSON.stringify(s));
+  localStorage.setItem(progressKey(CONFIG.STATS_KEY), JSON.stringify(s));
 }
 function getStats() {
-  try { return JSON.parse(localStorage.getItem(CONFIG.STATS_KEY)) || {}; }
+  try { return JSON.parse(localStorage.getItem(progressKey(CONFIG.STATS_KEY))) || {}; }
   catch { return {}; }
 }
 function getTotalGames() { return getStats().totalGames || 0; }
@@ -897,7 +1003,7 @@ function getTotalGames() { return getStats().totalGames || 0; }
 function loadHomeStats() {
   const s      = getStats();
   const streak = getStreak();
-  if (!s.totalGames) { showMotivation(); return; }
+  if (!s.totalGames) { document.getElementById('home-stats').style.display='none'; showMotivation(); return; }
   const acc = s.totalAnswered ? Math.round((s.totalCorrect / s.totalAnswered) * 100) : 0;
   
   const recEl = document.getElementById('hs-record');

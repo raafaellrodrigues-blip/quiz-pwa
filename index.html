@@ -3,19 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#0f0f13" />
-  <meta name="description" content="Quiz interativo com IA — perguntas estilo ENEM geradas pelo Claude" />
+  <meta name="theme-color" content="#1b2433" />
+  <meta name="description" content="Questões com inteligência artificial para estudar, praticar e evoluir." />
+  <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="QuizIA" />
+  <meta name="apple-mobile-web-app-title" content="RaciocineIA" />
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="public/icons/icon-192.png" />
   <link rel="icon" href="public/icons/icon-192.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
-  <title>QuizIA — Conhecimento Nunca Para</title>
+  <title>RaciocineIA — Eleve seu nível</title>
 </head>
 <body>
 
@@ -24,11 +25,14 @@
 ═══════════════════════════════════════════ -->
 <div id="screen-loading" class="screen active">
   <div class="loading-inner">
+    <div class="splash-orbit" aria-hidden="true"></div>
     <div class="loading-logo">
       <div class="logo-pulse">
-        <img src="logo.png" alt="Logo" class="app-logo-img" onerror="this.style.display='none'">
+        <img src="public/brand/raciocine-mark.png" alt="" class="app-logo-img" width="180" height="180" fetchpriority="high">
       </div>
     </div>
+    <div class="splash-wordmark">Raciocine<span>IA</span></div>
+    <p class="splash-tagline">Sua mente. Seu próximo nível.</p>
     <div class="loading-bar-wrap">
       <div class="loading-bar" id="loading-bar"></div>
     </div>
@@ -41,8 +45,9 @@
 ═══════════════════════════════════════════ -->
 <div id="screen-home" class="screen">
   <header class="home-header">
-    <span class="logo-text">Raciocine<span class="accent">IA</span></span>
+    <div class="brand-lockup"><img src="public/brand/raciocine-mark.png" alt="" width="38" height="38"><span class="logo-text">Raciocine<span class="accent">IA</span></span></div>
     <div class="header-btns">
+      <button class="icon-btn" id="btn-account" title="Conta">Entrar</button>
       <button class="icon-btn" id="btn-progress" title="Meu Progresso">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -57,9 +62,10 @@
   </header>
 
   <div class="home-hero">
-    <p class="hero-label">powered by Infocore IA</p>
-    <h1 class="hero-title">Eleve seu<br/><span class="accent">Nível</span></h1>
-    <p class="hero-sub">Perguntas geradas por IA no seu estilo — novas a cada partida</p>
+    <div class="hero-art" aria-hidden="true"><div class="hero-art-disc"></div><img src="public/brand/raciocine-mark.png" alt="" width="140" height="140"><span class="hero-spark spark-one">+</span><span class="hero-spark spark-two">+</span></div>
+    <p class="hero-label">SEU TREINO COMEÇA AQUI</p>
+    <h1 class="hero-title">Um novo dia.<br/><span class="accent">Um novo nível.</span></h1>
+    <p class="hero-sub">Seu conhecimento vai mais longe.<br/>Pratique com questões criadas para você.</p>
   <p class="home-motivation" id="home-motivation" style="display:none"></p>
   <button class="last-topic-hint" id="last-topic-hint" style="display:none"></button>
   </div>
@@ -146,20 +152,20 @@
 <!-- ═══════════════════════════════════════════
      AI LOADING OVERLAY
 ═══════════════════════════════════════════ -->
-<div id="ai-loading-overlay" style="display:none" class="ai-loading-overlay">
-  <div class="ai-loading-inner">
-    <div class="ai-loading-icon">🧠</div>
-    <p class="ai-loading-title">Gerando perguntas...</p>
-    <div class="skeleton-lines">
-      <div class="skeleton-line w80"></div>
-      <div class="skeleton-line w60"></div>
-      <div class="skeleton-line w90"></div>
-      <div class="skeleton-line w70"></div>
+<div id="ai-loading-overlay" style="display:none" class="ai-loading-overlay" role="status" aria-live="polite" aria-label="Gerando perguntas">
+  <div class="loading-inner">
+    <div class="splash-orbit" aria-hidden="true"></div>
+    <div class="loading-logo">
+      <div class="logo-pulse">
+        <img src="public/brand/raciocine-mark.png" alt="" class="app-logo-img" width="180" height="180">
+      </div>
     </div>
-    <div class="ai-bar-wrap">
-      <div class="ai-loading-bar" id="ai-loading-bar"></div>
+    <div class="splash-wordmark">Raciocine<span>IA</span></div>
+    <p class="splash-tagline">Sua mente. Seu próximo nível.</p>
+    <div class="loading-bar-wrap">
+      <div class="loading-bar" id="ai-loading-bar"></div>
     </div>
-    <p class="ai-loading-sub">A IA está criando questões únicas para você ✨</p>
+    <p class="loading-msg">Criando suas perguntas...</p>
   </div>
 </div>
 
@@ -277,36 +283,60 @@
      PROGRESS SCREEN
 ═══════════════════════════════════════════ -->
 <div id="screen-progress" class="screen">
-  <div class="lb-inner">
-    <div class="lb-header">
-      <button class="icon-btn" onclick="goHome()">
+  <aside class="progress-sidebar" aria-label="Navegação do painel">
+    <div class="brand-lockup"><img src="public/brand/raciocine-mark.png" alt="" width="32" height="32"><span class="logo-text">Raciocine<span class="accent">IA</span></span></div>
+    <p class="dashboard-eyebrow">SEU ESPAÇO DE EVOLUÇÃO</p>
+    <nav>
+      <button onclick="goHome()"><span aria-hidden="true">⌂</span> Início</button>
+      <button class="active" aria-current="page"><span aria-hidden="true">▥</span> Meu progresso</button>
+      <button onclick="showLeaderboard()"><span aria-hidden="true">♜</span> Ranking</button>
+    </nav>
+    <div class="sidebar-note"><img src="public/brand/raciocine-mark.png" alt="" width="64" height="64"><strong>Um pouco a cada dia.</strong><p>Seu próximo nível começa com a próxima questão.</p><button onclick="goHome()">Continuar estudando <span aria-hidden="true">↗</span></button></div>
+    <span class="sidebar-footer">RaciocineIA · Seu conhecimento evolui.</span>
+  </aside>
+  <div class="progress-main">
+    <div class="progress-header">
+      <button class="icon-btn progress-back" onclick="goHome()" aria-label="Voltar ao início">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="19" y1="12" x2="5" y2="12"/>
           <polyline points="12 19 5 12 12 5"/>
         </svg>
       </button>
-      <h2 class="lb-title">Meu Progresso</h2>
-      <div style="width:38px"></div>
+      <div><p class="dashboard-eyebrow">VISÃO GERAL / DESEMPENHO</p><h2 class="lb-title">Meu Progresso<span class="title-dot">.</span></h2></div>
+      <span class="dashboard-local"><span></span> Seu progresso neste dispositivo</span>
     </div>
-
-    <div class="progress-streak-card">
-      <span class="progress-streak-icon">🔥</span>
-      <div>
-        <p class="progress-streak-val" id="progress-streak">0 dias seguidos 🔥</p>
-        <p class="progress-streak-lbl">Ofensiva atual</p>
-      </div>
+    <div class="progress-metrics">
+      <article class="dashboard-metric"><div><span>Partidas concluídas</span><strong id="pd-games">0</strong><small>Ao longo da sua jornada</small></div><span class="metric-icon" aria-hidden="true">▤</span></article>
+      <article class="dashboard-metric"><div><span>Questões respondidas</span><strong id="pd-answered">0</strong><small>Cada questão é um passo</small></div><span class="metric-icon" aria-hidden="true">✓</span></article>
+      <article class="dashboard-metric"><div><span>Melhor pontuação</span><strong id="pd-best">0 <em>pts</em></strong><small>Seu recorde pessoal</small></div><span class="metric-icon" aria-hidden="true">↗</span></article>
+      <article class="dashboard-metric"><div><span>Experiência total</span><strong id="pd-xp">0 <em>XP</em></strong><small>Conhecimento acumulado</small></div><span class="metric-icon" aria-hidden="true">✦</span></article>
     </div>
-
-    <p class="section-label" style="margin-top:1.5rem">Medalhas</p>
-    <div class="ach-list" id="progress-badges" style="margin-bottom:1.5rem"></div>
-
-    <p class="section-label" style="margin-top:1.5rem">Desempenho por Tema</p>
-    <div id="progress-chart" class="progress-chart-section"></div>
-
-    <p class="section-label" style="margin-top:1.5rem">Histórico de partidas</p>
-    <div class="lb-list" id="progress-list" style="margin-top:.75rem"></div>
-
-    <button class="btn-outline" style="margin-top:1.5rem" onclick="clearLeaderboard()">Limpar histórico</button>
+    <div class="progress-dashboard-grid">
+      <article class="dashboard-card dashboard-welcome">
+        <p class="dashboard-eyebrow">CONHECIMENTO EM MOVIMENTO</p><h3>Sua dedicação.<br/><span>Seu próximo nível.</span></h3><p id="pd-welcome">Uma nova conquista começa com a primeira partida.</p>
+        <img class="dashboard-brain" src="public/brand/raciocine-mark.png" alt="" width="180" height="180">
+        <div class="dashboard-level"><span id="pd-level">Iniciante</span><span id="pd-level-caption">0 / 100 XP</span></div>
+        <div class="dashboard-level-track"><div id="pd-level-fill"></div></div>
+      </article>
+      <article class="dashboard-card dashboard-accuracy">
+        <div class="dashboard-card-heading"><h3>Precisão geral</h3><span class="dashboard-caption">Todas as partidas</span></div>
+        <div class="accuracy-gauge"><svg viewBox="0 0 160 160" aria-hidden="true"><circle class="gauge-track" cx="80" cy="80" r="64"/><circle class="gauge-value" id="pd-accuracy-ring" cx="80" cy="80" r="64" pathLength="100" stroke-dasharray="0 100"/></svg><div><strong id="pd-accuracy">0%</strong><span>de acertos</span></div></div>
+        <p class="dashboard-caption" id="pd-correct-caption">Nenhuma questão respondida</p>
+      </article>
+      <article class="dashboard-card dashboard-streak">
+        <div class="dashboard-card-heading"><h3>Constância</h3><span class="metric-icon" aria-hidden="true">ϟ</span></div>
+        <strong class="dashboard-streak-count" id="pd-streak-count">0<span>dias</span></strong><p id="progress-streak">Sua ofensiva atual</p>
+        <div class="streak-milestones" id="pd-streak-milestones" aria-label="Meta de sete dias seguidos"></div><p class="dashboard-caption" id="pd-streak-caption">Um dia de cada vez. Vamos começar?</p>
+      </article>
+      <article class="dashboard-card dashboard-trend">
+        <div class="dashboard-card-heading"><div><h3>Evolução dos acertos</h3><p class="dashboard-caption">Precisão em cada partida, da mais antiga à mais recente</p></div><select id="pd-trend-period" aria-label="Quantidade de partidas no gráfico" onchange="renderProgressTrend(getHistory(), Number(this.value))"><option value="12">Últimas 12</option><option value="30">Últimas 30</option></select></div>
+        <div id="pd-trend" class="dashboard-trend-chart"></div>
+      </article>
+      <article class="dashboard-card dashboard-topics"><div class="dashboard-card-heading"><div><h3>Desempenho por tema</h3><p class="dashboard-caption">Até 6 temas do histórico recente</p></div><span aria-hidden="true" class="dashboard-heading-symbol">▥</span></div><div id="progress-chart" class="progress-chart-section"></div><p class="dashboard-empty" id="pd-topics-empty">Jogue sua primeira partida para descobrir seus pontos fortes.</p></article>
+      <article class="dashboard-card dashboard-history"><div class="dashboard-card-heading"><div><h3>Histórico de partidas</h3><p class="dashboard-caption">Seus resultados mais recentes</p></div><span id="pd-history-count" class="dashboard-chip">0 partidas</span></div><div class="lb-list" id="progress-list"></div></article>
+      <article class="dashboard-card dashboard-badges"><div class="dashboard-card-heading"><div><h3>Suas conquistas</h3><p class="dashboard-caption">Cada medalha conta uma parte da jornada</p></div><span id="pd-badge-count" class="dashboard-chip">0 / 10</span></div><div class="ach-list" id="progress-badges"></div></article>
+    </div>
+    <p class="dashboard-footer">Seu progresso é salvo neste dispositivo. Continue de onde parou.</p>
   </div>
 </div>
 
@@ -325,7 +355,7 @@
       <h2 class="lb-title">Ranking</h2>
       <div style="width:38px"></div>
     </div>
-    <div class="lb-list" id="lb-list"></div>
+    <div class="online-ranking-controls"><label>Ranking <select id="ranking-period" onchange="Cloud.ranking(this.value)"><option value="all">Geral</option><option value="week">Esta semana</option></select></label><button onclick="showLocalLeaderboard()">Resultados locais</button></div><div class="lb-list" id="lb-list"></div>
     <button class="btn-outline" style="margin-top:1.5rem" onclick="clearLeaderboard()">Limpar histórico</button>
   </div>
 </div>
@@ -426,31 +456,7 @@
 // ═══════════════════════════════════════════
 // LOADING SCREEN
 // ═══════════════════════════════════════════
-(function initLoading() {
-  const bar   = document.getElementById('loading-bar');
-  const msg   = document.getElementById('loading-msg');
-  const steps = [
-    { pct: 20,  txt: 'Carregando interface...' },
-    { pct: 55,  txt: 'Conectando com a IA...' },
-    { pct: 80,  txt: 'Preparando quiz...' },
-    { pct: 100, txt: 'Pronto!' },
-  ];
-  let i = 0;
-  function nextStep() {
-    if (i >= steps.length) {
-      setTimeout(() => {
-        document.getElementById('screen-loading').classList.remove('active');
-        document.getElementById('screen-home').classList.add('active');
-      }, 350);
-      return;
-    }
-    const s = steps[i++];
-    bar.style.width = s.pct + '%';
-    msg.textContent = s.txt;
-    setTimeout(nextStep, i === steps.length ? 600 : 500);
-  }
-  setTimeout(nextStep, 400);
-})();
+// A abertura usa o fluxo de boot existente em app.js.
 
 // ═══════════════════════════════════════════
 // TOPIC SELECTOR
@@ -510,7 +516,22 @@ window.getSelectedTopic = function() { return selectedTopic; };
 <!-- LEVEL UP TOAST -->
 <div id="levelup-toast" class="levelup-toast"></div>
 
+<script src="question-validation.js"></script>
 <script src="app.js"></script>
+<dialog id="account-dialog" class="account-dialog">
+ <button class="account-close" aria-label="Fechar" onclick="this.closest('dialog').close()">×</button>
+ <h2>Sua conta RaciocineIA</h2>
+ <p id="account-status" role="status" aria-live="polite">Carregando configuração…</p>
+ <div id="account-login"><label>E-mail<input id="account-email" type="email" autocomplete="email"></label><label>Senha<input id="account-password" type="password" autocomplete="current-password" minlength="8"></label>
+ <div class="account-actions"><button data-account-action="login">Entrar</button><button data-account-action="signup">Criar conta</button><button data-account-action="recover">Recuperar senha</button></div></div>
+ <div id="account-profile" hidden><label>Nome público<input id="public-name" maxlength="30" autocomplete="nickname"></label>
+ <label><input id="public-listed" type="checkbox"> Quero aparecer no ranking público</label>
+ <p>Apenas seu nome e suas métricas de jogo serão públicos. O ranking soma pontos de partidas online validadas.</p>
+ <div class="account-actions"><button data-account-action="profile">Salvar perfil</button><button id="import-local" data-account-action="import" hidden>Importar progresso deste dispositivo</button><button onclick="Cloud.sync()">Sincronizar novamente</button><button data-account-action="logout">Sair</button></div>
+ <label>Nova senha<input id="new-account-password" type="password" autocomplete="new-password" oninput="document.getElementById('account-password').value=this.value"></label><button data-account-action="password">Atualizar senha</button>
+ </div><p>O histórico local importado e a prática offline ficam fora do ranking.</p>
+</dialog>
+<script src="cloud.js"></script>
 </body>
 </html>
 

@@ -3,7 +3,13 @@
   "builds": [
     {
       "src": "api/**/*.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "index.html"
+        ],
+        "maxDuration": 120
+      }
     },
     {
       "src": "*.html",
@@ -17,7 +23,9 @@
       "src": "*.js",
       "use": "@vercel/static",
       "config": {
-        "exclude": ["api/**"]
+        "exclude": [
+          "api/**"
+        ]
       }
     },
     {
@@ -39,27 +47,27 @@
   ],
   "routes": [
     {
+      "src": "/sw.js",
+      "dest": "/sw.js",
+      "headers": {
+        "Service-Worker-Allowed": "/",
+        "Cache-Control": "no-cache"
+      }
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json",
+      "headers": {
+        "Content-Type": "application/manifest+json"
+      }
+    },
+    {
       "src": "/api/(.*)",
       "dest": "/api/$1.js"
     },
     {
       "src": "/(.*)",
       "dest": "/$1"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Service-Worker-Allowed", "value": "/" },
-        { "key": "Cache-Control", "value": "no-cache" }
-      ]
-    },
-    {
-      "source": "/manifest.json",
-      "headers": [
-        { "key": "Content-Type", "value": "application/manifest+json" }
-      ]
     }
   ]
 }

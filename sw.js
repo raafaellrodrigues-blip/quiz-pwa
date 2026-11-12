@@ -3,13 +3,16 @@
 // Cache offline + estratégia Network-First para API
 // =============================================
 
-const CACHE_NAME = 'quizia-v2';
+const CACHE_NAME = 'raciocine-cloud-v5';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/cloud.js',
+  '/question-validation.js',
   '/manifest.json',
+  '/public/brand/raciocine-mark.png',
   '/public/icons/icon-192.png',
   '/public/icons/icon-512.png',
 ];
@@ -44,10 +47,7 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
 
   // API: Network-first (tenta buscar novo, cai no cache se offline)
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(networkFirst(request));
-    return;
-  }
+  if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
 
   // Google Fonts: Network-first com cache longo
   if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {

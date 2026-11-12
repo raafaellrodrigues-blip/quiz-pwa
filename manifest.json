@@ -1,14 +1,17 @@
 {
-  "name": "QuizIA — Conhecimento Nunca Para",
-  "short_name": "QuizIA",
+  "name": "RaciocineIA — Eleve seu nível",
+  "short_name": "RaciocineIA",
   "description": "Quiz interativo com perguntas geradas por Inteligência Artificial no estilo ENEM",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f13",
-  "theme_color": "#0f0f13",
+  "background_color": "#1b2433",
+  "theme_color": "#1b2433",
   "orientation": "portrait-primary",
   "lang": "pt-BR",
-  "categories": ["education", "games"],
+  "categories": [
+    "education",
+    "games"
+  ],
   "icons": [
     {
       "src": "public/icons/icon-192.png",
@@ -23,21 +26,18 @@
       "purpose": "any maskable"
     }
   ],
-  "screenshots": [
-    {
-      "src": "public/screenshot-mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow"
-    }
-  ],
   "shortcuts": [
     {
       "name": "Quiz Rápido",
       "short_name": "Rápido",
       "description": "Iniciar quiz no modo rápido",
       "url": "/?mode=rapido",
-      "icons": [{ "src": "public/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "public/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
