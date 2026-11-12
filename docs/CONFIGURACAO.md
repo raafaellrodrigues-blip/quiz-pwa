@@ -155,3 +155,9 @@ O aplicativo agora abre em uma página de login. Jogo, progresso e ranking exige
 Quem já executou a primeira migração deve executar **somente** `supabase/migrations/202611120002_required_ranking.sql` no SQL Editor. Ela ativa o ranking nos perfis existentes, define o padrão para novas contas e impede gravar `listed=false`. Não execute novamente a primeira migração. O código passa a ativar o ranking também ao carregar uma conta antiga, para compatibilidade durante a atualização. O critério de pontos continua usando apenas partidas online concluídas e validadas; prática e histórico importado ficam privados.
 
 A nova regra substitui as referências antigas deste guia a acesso de visitantes ou participação opcional. O fluxo de entrada oferece login, cadastro e recuperação de senha; a informação de ranking obrigatório fica visível antes de criar a conta. Somente nome público e métricas de jogo são compartilhados. Teste também abrir uma janela anônima: o conteúdo de estudo deve ficar bloqueado até entrar. Ao sair, o aplicativo deve voltar ao login imediatamente.
+
+## Correção de avanço e retomada de partidas
+
+O avanço de questão agora é bloqueado durante a transição, impedindo que clique repetido ou sobreposição do avanço automático pule uma pergunta. Quando uma resposta falha, a escolha original fica disponível para reenvio pelo botão de tentativa. Uma resposta já gravada é recuperada sem conceder pontos novamente.
+
+A página inicial mostra **Retomar partida** quando há uma sessão online incompleta das últimas 24 horas. A retomada usa o número de respostas confirmadas no banco, restaura o placar e os combos e reabre a primeira questão pendente. Essa funcionalidade substitui a limitação anterior sobre recarregar partidas em andamento. Não é necessária nova migração SQL para esta correção.

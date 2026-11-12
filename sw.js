@@ -3,7 +3,7 @@
 // Cache offline + estratégia Network-First para API
 // =============================================
 
-const CACHE_NAME = 'raciocine-auth-v6';
+const CACHE_NAME = 'raciocine-game-v7';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

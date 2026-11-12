@@ -179,6 +179,7 @@ function goHome() {
   syncDiffPillsUI();
   loadHomeStats();
   showScreen('home');
+  window.Cloud?.checkPending();
 }
 
 // Garante que o botão "Gerar Quiz com IA" nunca fique travado desabilitado.
@@ -248,6 +249,7 @@ async function startGame() {
     G.localId = crypto.randomUUID(); G.topic = tema; G.completed = false;
     Object.assign(G, {
       questions: qs, idx: 0, score: 0, combo: 0,
+      pendingAnswer:null,transitioning:false,
       maxCombo: 0, correct: 0, answered: false,
       prevLevel: G.level,
     });
@@ -267,6 +269,26 @@ async function startGame() {
     }
     btn.disabled = false;
   }
+}
+
+async function resumeGame() {
+  const btn=document.getElementById('btn-resume');
+  const message=document.getElementById('resume-status');
+  btn.disabled=true;message.textContent='Recuperando a partida salva…';
+  try {
+    const game=await Cloud.resume();
+    if(!game.available){btn.hidden=true;message.textContent='Nenhuma partida pendente.';return;}
+    const xp=getStats().totalXP||0;
+    Object.assign(G,{onlineId:game.id,localId:game.id,topic:game.topic,mode:game.mode,
+      questions:game.questions.map(q=>({...q,correct:-2,explanation:''})),idx:game.index,
+      score:game.score,correct:game.correct,combo:game.combo,maxCombo:game.maxCombo,
+      xp:xp+game.correct*CONFIG.XP_PER_CORRECT,prevLevel:computeLevel(xp),
+      answered:false,sendingAnswer:false,transitioning:false,pendingAnswer:null,completed:false});
+    G.level=computeLevel(G.xp);
+    G.difficulty=game.questions.every(q=>q.difficulty==='Fácil')?'facil':game.questions.every(q=>q.difficulty==='Difícil')?'dificil':game.questions.every(q=>q.difficulty==='Médio')?'medio':'misto';
+    message.textContent='';showScreen('quiz');await renderQuestion();
+  }catch(e){message.textContent='Não foi possível retomar: '+e.message;}
+  finally{btn.disabled=false;}
 }
 
 // ── SKELETON / LOADING DA IA ──────────────────
@@ -477,6 +499,7 @@ async function renderQuestion() {
   } else {
     tw.style.display = 'none';
   }
+  G.transitioning = false;
 }
 
 function renderXPBar() {
@@ -505,6 +528,8 @@ function updateRing(cur, total) {
 // ── RESPOSTA ──────────────────────────────────
 async function selectAnswer(idx) {
   if (G.answered || G.sendingAnswer) return;
+  G.pendingAnswer = G.pendingAnswer || { index:G.idx, answer:idx };
+  idx = G.pendingAnswer.answer;
   if (G.onlineId) {
     G.sendingAnswer = true;
     if (G.timer) clearInterval(G.timer);
@@ -516,11 +541,16 @@ async function selectAnswer(idx) {
       idx = reply.answer;
     } catch(e) {
       const next = document.getElementById("btn-next");
-      next.style.display="flex"; next.textContent="Falha ao salvar resposta. Toque em uma alternativa para tentar novamente.";
+      next.style.display="flex"; next.textContent="Tentar salvar resposta novamente";
+      next.onclick=()=>selectAnswer(G.pendingAnswer.answer);
+      document.getElementById('q-text').textContent=G.questions[G.idx].question+' — '+e.message;
       return;
     } finally { G.sendingAnswer = false; }
   }
   G.answered = true;
+  G.pendingAnswer = null;
+  document.getElementById('btn-next').onclick=null;
+  document.getElementById('q-text').textContent=G.questions[G.idx].question;
   if (G.timer) clearInterval(G.timer);
 
   const q    = G.questions[G.idx];
@@ -685,7 +715,10 @@ function showComboToast(combo, pts) {
 
 // ── PRÓXIMA QUESTÃO ───────────────────────────
 function nextQuestion() {
-  if (G.onlineId && (!G.answered || G.sendingAnswer)) return;
+  if (G.transitioning || !G.answered || G.sendingAnswer) return;
+  G.transitioning=true;
+  G.answered=false;
+  G.pendingAnswer=null;
   if (G.autoNextTimer) { clearTimeout(G.autoNextTimer); G.autoNextTimer = null; }
   if (G.autoNextTick)  { clearInterval(G.autoNextTick); G.autoNextTick = null; }
   G.idx++;
@@ -733,7 +766,7 @@ function showResults() {
   const rlv = document.getElementById('r-level');
   if (rlv) rlv.textContent = CONFIG.LEVELS[G.level].icon + ' ' + CONFIG.LEVELS[G.level].name;
 
-  const tema = window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório';
+  const tema = G.topic || (window.getSelectedTopic ? window.getSelectedTopic().label : 'Aleatório');
   saveHistory({ date: new Date().toLocaleDateString('pt-BR'), tema, mode: G.mode, correct: G.correct, total: CONFIG.TOTAL_QUESTIONS, score: G.score, pct });
 
   const newBadges    = checkCategoryBadges(tema, G.correct, pct);

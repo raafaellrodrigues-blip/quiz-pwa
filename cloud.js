@@ -115,6 +115,12 @@ window.Cloud = (() => {
   if(!result.available){status(result.reason);return null;}return result;
  }
  async function answer(index,chosen){return api('/api/game',{action:'answer',id:G.onlineId,index,answer:chosen});}
+ async function resume(){return api('/api/game',{action:'resume'});}
+ async function checkPending(){
+  const btn=document.getElementById('btn-resume');
+  if(!session||!verified||!btn)return;
+  try{const game=await resume();btn.hidden=!game.available;if(game.available)btn.textContent='Retomar partida · pergunta '+(game.index+1)+' de 10';}catch{}
+ }
  function complete(){
   if(!session)return;
   const event={id:G.onlineId||G.localId,kind:G.onlineId?'verified':'practice',correct:G.correct,score:G.score,mode:G.mode,tema:G.topic,date:new Date().toISOString()};
@@ -127,6 +133,6 @@ window.Cloud = (() => {
    for(const p of data.players){const row=document.createElement('div');row.className='lb-row';for(const text of [p.position+'º',p.public_name,p.score+' pts']){const span=document.createElement('span');span.textContent=text;row.append(span);}list.append(row);}
   }catch(e){list.textContent='Ranking online indisponível. '+e.message;}
  }
- return {init,sync,start,answer,complete,ranking,questions:(diff,topic,count)=>api('/api/quiz?difficulty='+encodeURIComponent(diff)+'&topic='+encodeURIComponent(topic)+'&count='+count),present:index=>api('/api/game',{action:'present',id:G.onlineId,index}),get authenticated(){return !!session&&verified;},get userId(){return session?.user?.id;},get enabled(){return config?.enabled;}};
+ return {init,sync,start,answer,complete,ranking,resume,checkPending,questions:(diff,topic,count)=>api('/api/quiz?difficulty='+encodeURIComponent(diff)+'&topic='+encodeURIComponent(topic)+'&count='+count),present:index=>api('/api/game',{action:'present',id:G.onlineId,index}),get authenticated(){return !!session&&verified;},get userId(){return session?.user?.id;},get enabled(){return config?.enabled;}};
 })();
 window.addEventListener('DOMContentLoaded',()=>Cloud.init());
